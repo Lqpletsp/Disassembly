@@ -1,0 +1,71 @@
+"""
+|This is a comment|
+"""
+
+"""
+|print "Hello World"|
+out "Hello World"
+"""
+
+"""
+|add,subtract,multiply, and divide two or more numbers|
+decm 200; 
+decv number1, number2, number3 int; 
+set number1, number2 10; 
+add number1,number2 number3; 
+minus number1,number2 number3; 
+mult number1,number2 number3; 
+div number1,number2 number3; 
+"""
+
+"""
+|fibonacci series (recursive)|
+decm 300; 
+decv number1,number2,count int; 
+out "Enter two numbers: ";
+in number1,number2; 
+decf fibonacci num1,num2,count; 
+decv num3 int; 
+add num1,num2 num3; 
+out num3; 
+inc count; 
+set num1 num2; 
+set num2 num3; 
+cmpt count,10 <= l1; 
+decl l1 dne; 
+call fibonacci num1,num2,count; 
+endl; 
+endf; 
+call fibonacci number1,number2,count;
+"""
+
+"""
+|fibonacci series (iterative but uses recursive in the interpreter so there's an edge case if upper-bound > 998)|
+decm 300;
+decv number1,number2,number3,count int; 
+out "Enter two numbers: ";
+in number1,number2; 
+decl l1 dne; 
+add number1,number2 number3; 
+out number3; 
+inc count; 
+set number1 number2; 
+set number2 number3; 
+endl; 
+loop 1,10 l1; 
+"""
+
+"""
+|Greatest amongst two numbers|
+decm 100; 
+decv num1,num2 int; 
+in num1,num2; 
+cmpt num1,num2 > l1; 
+cmpf num1,num2 > l2; 
+decl l1 dne; 
+out num1, " is the greatest";
+endl; 
+decl l2 dne; 
+out num2, " is the greatest";
+endl; 
+"""
