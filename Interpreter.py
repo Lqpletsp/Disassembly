@@ -37,8 +37,9 @@ class Interpreter:
                 self.__code[iter1] = tokenizedline
                 if tokenizedline[0] not in Keyword().GetCommands():
                     Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
-                if tokenizedline[0] == "endf" or tokenizedline[0] == "endl" and len(tokenizedline) > 1: 
-                    Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}")
+                if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
+                    print(tokenizedline)
+                    Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
                 if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
                     Error().OutError(f"'{tokenizedline[0]}' is a one executing data command. Malformed line for one-execution-data commands",iter1)
                 elif tokenizedline[0] in Keyword().GetTwoOrMoreVariableCommand() and len(tokenizedline) < 2: 
@@ -386,11 +387,16 @@ class Interpreter:
             variabledata = self.searchvariables(each)
             if not variabledata: return False, f"Variable not declared, {each}"
             if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot increment varchar/boolean data"
-            self.__memory[9] -= len(str(int(float(variabledata[2]))))
-            self.checkmemory()
-            self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
-            self.checkmemory()
-            state = self.storedata(variabledata[0],float(variabledata[2])+1)
+            if variabledata[2] != "None":
+                self.__memory[9] -= len(str(int(float(variabledata[2]))))
+                self.checkmemory()
+                self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
+                self.checkmemory()
+                state = self.storedata(variabledata[0],float(variabledata[2])+1)
+            else:
+                self.__memory[9] += 1 
+                self.checkmemory()
+                state = self.storedata(variabledata[0],str(float(1)))
             if not state:return False, "CRITICAL ERROR"
         return True, ""
 
