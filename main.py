@@ -1,7 +1,6 @@
 from Tokenizer import Tokenizer 
 from Interpreter import Interpreter
 Code = """
-|Declare an array|
 decm 200; 
 decf X a,b,c; 
 out a;
