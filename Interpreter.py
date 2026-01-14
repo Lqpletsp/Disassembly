@@ -1,3 +1,4 @@
+import sys # To increase recursion limit
 from ErrorAndWarning import Errors as Error
 from ErrorAndWarning import Warnings 
 from Keywords import Keyword
@@ -20,8 +21,6 @@ class Interpreter:
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
             [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>]]
 
-            Each partition in the simulated memory will have a metadata where it ONLY stores the total memory occupied.
-
             NOTE: MEMORY USED IN THE PROGRAM IS JUST A SIMULATION. IT ONLY STORES DATA THAT IS BEING USED IN THE CODE WRITTEN IN Disassembly
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
            """
@@ -38,7 +37,6 @@ class Interpreter:
                 if tokenizedline[0] not in Keyword().GetCommands():
                     Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
                 if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
-                    print(tokenizedline)
                     Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
                 if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
                     Error().OutError(f"'{tokenizedline[0]}' is a one executing data command. Malformed line for one-execution-data commands",iter1)
@@ -356,7 +354,7 @@ class Interpreter:
                 try: 
                     data = self.__memory[3].pop()
                     try: 
-                        prioritydata -= float(data)#Edge case in add detected in this line 
+                        prioritydata -= float(data)
                     except: return False, "temp contains varchar/boolean data. \n Cannot store varchar/boolean data in int/float data-type variables"
                 except:
                     return False, "temp is empty."
@@ -403,15 +401,20 @@ class Interpreter:
     def dec(self,decvalues) -> tuple[bool,str]:
         for each in decvalues: 
             dt = self.determinedt(each)
-            if dt != 'var':return False,"Can only decrement int/float variables"
+            if dt != 'var':return False,"Can only increment int/float variables"
             variabledata = self.searchvariables(each)
             if not variabledata: return False, f"Variable not declared, {each}"
             if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot decrement varchar/boolean data"
-            self.__memory[9] -= len(str(int(float(variabledata[2]))))
-            self.checkmemory()
-            self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
-            self.checkmemory()
-            state = self.storedata(variabledata[0],float(variabledata[2])-1)
+            if variabledata[2] != "None":
+                self.__memory[9] -= len(str(int(float(variabledata[2]))))
+                self.checkmemory()
+                self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
+                self.checkmemory()
+                state = self.storedata(variabledata[0],float(variabledata[2])-1)
+            else:
+                self.__memory[9] += 1 
+                self.checkmemory()
+                state = self.storedata(variabledata[0],str(float(-1)))
             if not state:return False, "CRITICAL ERROR"
         return True, ""
 
