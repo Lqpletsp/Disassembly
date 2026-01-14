@@ -32,7 +32,9 @@ class Interpreter:
                 tokenizedline = self.__code[iter1]
                 if not tokenizedline: continue
                 tokenizedline = [each for each in tokenizedline if each != '']
-                if not tokenizedline: continue
+                if not tokenizedline:
+                    self.__code[iter1] = []
+                    continue
                 self.__code[iter1] = tokenizedline
                 if tokenizedline[0] not in Keyword().GetCommands():
                     Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
@@ -43,11 +45,11 @@ class Interpreter:
                 elif tokenizedline[0] in Keyword().GetTwoOrMoreVariableCommand() and len(tokenizedline) < 2: 
                     Error().OutError("'{tokenizedline[0]}' is a two-or-more executing data command. Malformed line for two-or more execution-data commands",iter1)
             self.__firstpass = True
-            self.__code = [each for each in self.__code if each != [] and each[0]]
         if not self.__secondpass: 
             #_______SECOND PASS______
             for iter1 in range(startpointer,len(self.__code)): #Second pass. Declares memory/functions/variables. This does not impact the memory.
                 tokenizedline = self.__code[iter1]
+                if not tokenizedline: continue
                 if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
                     if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
                     else: self.__infunction = False 
@@ -127,14 +129,21 @@ class Interpreter:
                     if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
                         Error().OutError(f"Function not declared, '{line[1]}'",iter1)
                     self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
-                    for each in self.__memory[0]:
-                        if each[0] in line[1:]:
-                            self.__memory[7].append([each[0],each[1],each[2]])
+                    for each in line[2:]:
+                        dt = self.determinedt(each)
+                        if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
+                        if dt == "var":
+                            variabledata = self.searchvariables(each)
+                            if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
+                            self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
+                        else: self.__memory[7].append(['None',dt,each])
                     if len(line[2:]) != len(self.__memory[7]):
                         Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
                     self.__memory[0] = []
                     fncdeclaration = self.__code[fncdata[2]]
                     for iter2 in range(len(fncdeclaration[2:])):
+                        self.__memory[9] += len(str(self.__memory[7][iter2][2]))
+                        self.checkmemory()
                         self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
                     for each in self.__memory[1]:
                         self.__memory[5].append([each[0],each[1],each[2]])
@@ -271,8 +280,7 @@ class Interpreter:
             if each == "temp":
                 try: 
                     data = self.__memory[3].pop()
-                    try: 
-                        prioritydata = float(data)/prioritydata  
+                    try: prioritydata = float(data)/prioritydata  
                     except: return False, "temp contains varchar/boolean data. \n Cannot store varchar/boolean data in int/float data-type variables"
                 except:
                     return False, "temp is empty."
@@ -616,7 +624,8 @@ class Interpreter:
         datatype = declaration[-1]
         if datatype not in Keyword().GetDataTypes():return False,"No appropriate data-type given for variable declaration"
         for iter1 in range(len(declaration)-1):
-            if declaration[0] == "temp":self.__storewarnings.append("Variable name: 'temp'. Can lead to unexpected outputs")
+            if declaration[iter1] == "temp":self.__storewarnings.append("Variable name: 'temp'. Can lead to unexpected outputs")
+            elif not self.verifyName(declaration[iter1]): return False, f"Invalid variable name given. \n Cannot declare '{declaration[iter1]}'"
             self.__memory[0].append([declaration[iter1],datatype,"None"]) #Variable Format: [<variable name>,<variable data-type>, <data>]
         return True,""
 
