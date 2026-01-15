@@ -3,7 +3,7 @@ from ErrorAndWarning import Errors as Error
 from ErrorAndWarning import Warnings 
 from Keywords import Keyword
 
-sys.setrecursionlimit(810)
+sys.setrecursionlimit(8010)
 
 class Interpreter: 
     def __init__(self,CODE) -> None: 
