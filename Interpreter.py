@@ -3,6 +3,8 @@ from ErrorAndWarning import Errors as Error
 from ErrorAndWarning import Warnings 
 from Keywords import Keyword
 
+sys.setrecursionlimit(810)
+
 class Interpreter: 
     def __init__(self,CODE) -> None: 
         self.__code:list = CODE 
@@ -15,7 +17,7 @@ class Interpreter:
         self.__secondpass:bool = False
         self.__firstpass:bool = False 
         self.__storewarnings:list = []
-
+        self.__recursioncount:int = 0
         """MEMORY FORMAT: 
 
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
@@ -103,8 +105,7 @@ class Interpreter:
             if line[0] == "endf" and len(line) == 1 and not self.__inlabel:
                 if not self.__infunction and self.__functioncall: Error().OutError("No function found to end",iter1) 
                 if self.__infunction and not self.__functioncall:self.__infunction = False
-                else:
-                    return 
+                else:return 
             elif line[0] == "endl" and len(line) == 1:
                 if not self.__inlabel and self.__labelcall: Error().OutError("No label found to end",iter1)
                 if self.__inlabel and not self.__labelcall and not self.__memory[10]: self.__inlabel = False 
@@ -123,46 +124,45 @@ class Interpreter:
 
             if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):continue
             if line[0] == "call":
-                if line[1] != self.__memory[8][1]:
-                    self.__memory[7] = []
-                    fncdata = self.findfnc(line[1])
-                    if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
-                        Error().OutError(f"Function not declared, '{line[1]}'",iter1)
-                    self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
-                    for each in line[2:]:
-                        dt = self.determinedt(each)
-                        if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
-                        if dt == "var":
-                            variabledata = self.searchvariables(each)
-                            if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
-                            self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
-                        else: self.__memory[7].append(['None',dt,each])
-                    if len(line[2:]) != len(self.__memory[7]):
-                        Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
-                    self.__memory[0] = []
-                    fncdeclaration = self.__code[fncdata[2]]
-                    for iter2 in range(len(fncdeclaration[2:])):
-                        self.__memory[9] += len(str(self.__memory[7][iter2][2]))
-                        self.checkmemory()
-                        self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
-                    for each in self.__memory[1]:
-                        self.__memory[5].append([each[0],each[1],each[2]])
-                    self.__memory[1] = [fncdata]
-                    self.__memory[8][0] = self.__memory[8][1]
-                    self.__memory[8][1] = fncdata[1]
-                    self.__firstpass,self.__infunction,self.__functioncall = False,True,True
-                    self.Interpret(fncdata[2] + 1)
-                    self.__firstpass = True
-                    self.__memory[8][1] = fncdata[0]
-                    if self.__memory[8][1] != 23455432:
-                        self.__infunction = True 
-                    self.__memory[0] = self.__memory[4].pop()
-                    self.__memory[1] = self.__memory[5].pop()
-                    continue
-                else:
-                    fncdata = self.findfnc(line[1])
-                    self.Interpret(fncdata[2]+1)
-                    continue
+                self.__recursioncount += 1 
+                if self.__recursioncount >= 800: 
+                    Error().OutError("Recursion limit (8000 recursions) reached.",iter1)
+                self.__memory[7] = []
+                fncdata = self.findfnc(line[1])
+                if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
+                    Error().OutError(f"Function not declared, '{line[1]}'",iter1)
+                self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                for each in line[2:]:
+                    dt = self.determinedt(each)
+                    if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
+                    if dt == "var":
+                        variabledata = self.searchvariables(each)
+                        if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
+                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
+                    else: self.__memory[7].append(['None',dt,each])
+                if len(line[2:]) != len(self.__memory[7]):
+                    Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
+                self.__memory[0] = []
+                fncdeclaration = self.__code[fncdata[2]]
+                for iter2 in range(len(fncdeclaration[2:])):
+                    self.__memory[9] += len(str(self.__memory[7][iter2][2]))
+                    self.checkmemory()
+                    self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
+                for each in self.__memory[1]:
+                    self.__memory[5].append([each[0],each[1],each[2]])
+                self.__memory[1] = [fncdata]
+                self.__memory[8][0] = self.__memory[8][1]
+                self.__memory[8][1] = fncdata[1]
+                self.__secondpass,self.__infunction,self.__functioncall = False,True,True
+                self.Interpret(fncdata[2] + 1)
+                self.__firstpass = True
+                self.__memory[8][1] = fncdata[0]
+                if self.__memory[8][1] != 23455432:
+                    self.__infunction = True 
+                self.__memory[0] = self.__memory[4].pop()
+                self.__memory[1] = self.__memory[5].pop()
+                self.__recursioncount -= 1 
+                continue
             elif line[0] == "decf":
                 self.__infunction = True
                 self.__functioncall = False
@@ -192,6 +192,7 @@ class Interpreter:
                     if (variabledata[1] != "int" or variabledata[2] != "float"): Error().OutError("End value for a loop cannot be varchar/boolean data.",iter1)
                     if variabledata[2] == "empt": Error().OutError("Cannot use empt value for end",iter1)
                     else: endval = variabledata[2]
+                if endval > 990: sys.setrecursionlimit(endval + 1)
                 for loopcmd in range(int(startval),int(endval)):
                     self.__inlabel = True
                     self.__labelcall = True
@@ -553,7 +554,11 @@ class Interpreter:
                 logicstack.append(store)
                 if not varstack: return False, "No data given for logical statement"
                 varstack = []
-            elif each == "&" or each == "~":logicstack.append(each) # '&' means 'and' and '~' means 'or'
+            elif each == "&" or each == "~":
+                if len(varstack) == 1: 
+                    if varstack[0][0] == "bool" and varstack[0][1]: logicstack.append(0)
+                    else: logicstack.append(0)
+                logicstack.append(each) # '&' means 'and' and '~' means 'or'
             else:return False,"CRITICAL ERROR"
             count = 0
         if len(logicstack) == 1: 
