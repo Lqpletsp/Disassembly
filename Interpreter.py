@@ -3,7 +3,7 @@ from ErrorAndWarning import Errors as Error
 from ErrorAndWarning import Warnings 
 from Keywords import Keyword
 
-sys.setrecursionlimit(8010)
+sys.setrecursionlimit(810)
 
 class Interpreter: 
     def __init__(self,CODE) -> None: 
@@ -619,7 +619,7 @@ class Interpreter:
                     if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
                     elif variabledata[1] == "float":print(str(float(variabledata[2].strip('"'))),end="")
                 except:print("empt",end="")
-                if variabledata[1] == "str": print(str(variabledata[2].strip('"')),end="")
+                if variabledata[1] == "varchar": print(str(variabledata[2].strip('"')),end="")
             elif dt == "int":print(str(int(float(each.strip('"')))),end="")
             elif dt == "varchar":print(str(each.strip('"')),end="")
         print()
