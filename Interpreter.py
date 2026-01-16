@@ -12,7 +12,7 @@ class Interpreter:
         self.__functioncall:bool = False 
         self.__inlabel:bool = False
         self.__labelcall:bool = False
-        self.__memory:list = [[],[],[],[],[[]],[],[],[],[23455432,23455432,None],0,[]]
+        self.__memory:list = [[],[],[],[],[[]],[],[],[],[23455432,23455432,None],0,[],[]]
         self.__totalmemory:int = 0 
         self.__secondpass:bool = False
         self.__firstpass:bool = False 
@@ -21,7 +21,7 @@ class Interpreter:
         """MEMORY FORMAT: 
 
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
-            [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>]]
+            [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>],[<User-made commands>]
 
             NOTE: MEMORY USED IN THE PROGRAM IS JUST A SIMULATION. IT ONLY STORES DATA THAT IS BEING USED IN THE CODE WRITTEN IN Disassembly
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
@@ -39,14 +39,18 @@ class Interpreter:
                     continue
                 self.__code[iter1] = tokenizedline
                 if tokenizedline[0] not in Keyword().GetCommands():
-                    Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
+                    cmddata = self.searchcmd(tokenizedline[0])
+                    if not cmddata: 
+                        Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
                 if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
                     Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
                 if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
                     Error().OutError(f"'{tokenizedline[0]}' is a one executing data command. Malformed line for one-execution-data commands",iter1)
                 elif tokenizedline[0] in Keyword().GetTwoOrMoreVariableCommand() and len(tokenizedline) < 2: 
                     Error().OutError("'{tokenizedline[0]}' is a two-or-more executing data command. Malformed line for two-or more execution-data commands",iter1)
-            self.__firstpass = True
+                elif tokenizedline[0] == "mkcmd" and len(tokenizedline) >= 2:
+                    for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
+            self.__firstpass,self.__memory[11] = True,[]
         if not self.__secondpass: 
             #_______SECOND PASS______
             for iter1 in range(startpointer,len(self.__code)): #Second pass. Declares memory/functions/variables. This does not impact the memory.
@@ -94,7 +98,11 @@ class Interpreter:
                 elif tokenizedline[0] == "endl" and len(tokenizedline) == 1:
                     if self.__memory[8][2] == None: Error().OutError("No label declared to end",iter1)
                     try:self.__memory[10].pop()
-                    except:pass 
+                    except:pass
+                elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 2:
+                    fncdata = self.findfnc(tokenizedline[1])
+                    if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
+                    self.__memory[11].append([tokenizedline[1],iter1]) # Format: [<function name>,<function pointer>] 
             self.__firstpass,self.__functioncall,self.__infunction,self.__inlabel,self.__labelcall = True,False,False,False,False
         # ____________________ THIRD PASS ____________________
         for iter1 in range(startpointer,len(self.__code)):
@@ -102,7 +110,8 @@ class Interpreter:
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
             if not line: continue
-            if line[0] == "endf" and len(line) == 1 and not self.__inlabel:
+            elif line[0] == "decv" or line[0] == "mkcmd" or line[0] == "decm": continue
+            elif line[0] == "endf" and len(line) == 1 and not self.__inlabel:
                 if not self.__infunction and self.__functioncall: Error().OutError("No function found to end",iter1) 
                 if self.__infunction and not self.__functioncall:self.__infunction = False
                 else:return 
@@ -123,6 +132,7 @@ class Interpreter:
                 else: return False, "Invalid way of declaring a label. Mid-line commands as 'dne' or 'e' can only be used. "
 
             if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):continue
+
             if line[0] == "call":
                 self.__recursioncount += 1 
                 if self.__recursioncount >= 800: 
@@ -140,7 +150,7 @@ class Interpreter:
                         if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
                         self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
                     else: self.__memory[7].append(['None',dt,each])
-                if len(line[2:]) != len(self.__memory[7]):
+                if len(self.__code[iter1][2:]) != len(self.__memory[7]):
                     Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
                 self.__memory[0] = []
                 fncdeclaration = self.__code[fncdata[2]]
@@ -253,9 +263,59 @@ class Interpreter:
             elif line[0] == "div" and len(line) > 3: 
                 returnval,returnstate = self.div(line[1:])
                 if not returnval: Error().OutError(returnstate,iter1)
+            elif line[0] != "endf" and line[0] != "endl": 
+                cmddata = self.searchcmd(line[0])
+                if not cmddata: Error().OutError(f"'{line[0]}' does not reference any function. Invalid command",iter1)
+                self.__recursioncount += 1 
+                if self.__recursioncount >= 800: 
+                    Error().OutError("Recursion limit (800 recursions) reached.",iter1)
+                self.__memory[7] = []
+                fncdata = self.findfnc(line[0])
+                if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
+                    Error().OutError(f"Function not declared, '{line[0]}'",iter1)
+                self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                for each in line[1:]:
+                    dt = self.determinedt(each)
+                    if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
+                    if dt == "var":
+                        variabledata = self.searchvariables(each)
+                        if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
+                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
+                    else: self.__memory[7].append(['None',dt,each])
+                if len(self.__code[fncdata[2]][2:]) != len(self.__memory[7]):
+                    if len(self.__code[iter1][2:]) == 1: 
+                        Error().OutError(f"User-made command, '{line[0]}', takes a single data. {len(self.__memory[7])} given.",fncdata[2])
+                    elif len(self.__code[iter1][2:]) > 1: 
+                        Error().OutError(f"User-made command '{line[0]}', takes one or more than one data. {len(self.__memory[7])} given.",fncdata[2])
+                self.__memory[0] = []
+                fncdeclaration = self.__code[fncdata[2]]
+                for iter2 in range(len(fncdeclaration[2:])):
+                    self.__memory[9] += len(str(self.__memory[7][iter2][2]))
+                    self.checkmemory()
+                    self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
+                for each in self.__memory[1]:
+                    self.__memory[5].append([each[0],each[1],each[2]])
+                self.__memory[1] = [fncdata]
+                self.__memory[8][0] = self.__memory[8][1]
+                self.__memory[8][1] = fncdata[1]
+                self.__secondpass,self.__infunction,self.__functioncall = False,True,True
+                self.Interpret(fncdata[2] + 1)
+                self.__firstpass = True
+                self.__memory[8][1] = fncdata[0]
+                if self.__memory[8][1] != 23455432:
+                    self.__infunction = True 
+                self.__memory[0] = self.__memory[4].pop()
+                self.__memory[1] = self.__memory[5].pop()
+                self.__recursioncount -= 1 
+                continue
 
         if self.__totalmemory == 0: self.__storewarnings.append("Memory was not declared.")
         for each in self.__storewarnings:Warnings().OutWarning(each)
+
+    def searchcmd(self,cmd) -> tuple[str,int]:
+        for each in self.__memory[11]:
+            if each[0] == cmd: return each
+        return []
 
     def div(self,divvalues) -> tuple[bool,str]:
         prioritydata = 0 
