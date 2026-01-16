@@ -40,7 +40,7 @@ call fibonacci number1,number2,count;
 """
 
 """
-|fibonacci series (iterative but uses recursive in the interpreter so there's an edge case if upper-bound > 998)|
+|fibonacci series (iterative)|
 decm 300;
 decv number1,number2,number3,count int; 
 out "Enter two numbers: ";
