@@ -1,13 +1,15 @@
-import sys # To increase recursion limit
+import sys 
+import os 
 from ErrorAndWarning import Errors as Error
 from ErrorAndWarning import Warnings 
 from Keywords import Keyword
+from Tokenizer import Tokenizer
 
 sys.setrecursionlimit(810)
 
 class Interpreter: 
-    def __init__(self,CODE) -> None: 
-        self.__code:list = CODE 
+    def __init__(self,pathtoffiledir) -> None: 
+        self.__code:list = []
         self.__infunction:bool = False
         self.__functioncall:bool = False 
         self.__inlabel:bool = False
@@ -18,6 +20,10 @@ class Interpreter:
         self.__firstpass:bool = False 
         self.__storewarnings:list = []
         self.__recursioncount:int = 0
+        self.__dirpath:str = pathtoffiledir
+        self.__broughtlines:list = []
+        self.__broughtfiles:list = []
+
         """MEMORY FORMAT: 
 
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
@@ -26,90 +32,131 @@ class Interpreter:
             NOTE: MEMORY USED IN THE PROGRAM IS JUST A SIMULATION. IT ONLY STORES DATA THAT IS BEING USED IN THE CODE WRITTEN IN Disassembly
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
            """
-    def Interpret(self,startpointer) -> None: 
-        try:self.__code[startpointer]
-        except: Error().OutError("No code line(s) found for the called function",startpointer) 
+    def getMemory(self) -> list: return self.__memory
+    def getrecursioncount(self) -> int: return self.__recursioncount
+    def getVariablelist(self) -> list: return self.__memory[0]
+    def gettemp(self) -> list: return self.__memory[3]
+
+    def Interpret(self,startpointer,code) -> None: 
         if not self.__firstpass: 
-            for iter1 in range(len(self.__code)):
-                tokenizedline = self.__code[iter1]
-                if not tokenizedline: continue
-                tokenizedline = [each for each in tokenizedline if each != '']
-                if not tokenizedline:
-                    self.__code[iter1] = []
-                    continue
-                self.__code[iter1] = tokenizedline
-                if tokenizedline[0] not in Keyword().GetCommands():
+            self.firstpass(code)
+        if self.__broughtlines: 
+            self.firstpass(self.__broughtlines)
+        self.__firstpass,self.__memory[11] = True,[]
+        self.__code += self.__broughtlines
+        if not self.__secondpass: 
+            self.secondpass(startpointer)
+            self.__firstpass,self.__functioncall,self.__infunction,self.__inlabel,self.__labelcall = True,False,False,False,False
+        self.thirdpass(startpointer)
+        if self.__totalmemory == 0: self.__storewarnings.append("Memory was not declared.")
+        for each in self.__storewarnings:Warnings().OutWarning(each)
+
+    def firstpass(self,code):
+        for iter1 in range(len(code)):
+            tokenizedline = code[iter1]
+            if not tokenizedline: continue
+            tokenizedline = [each for each in tokenizedline if each != '']
+            if not tokenizedline:
+                self.__code.append([])
+                continue
+            if tokenizedline[0] not in Keyword().GetCommands():
+                if "@" not in tokenizedline[0]:
                     cmddata = self.searchcmd(tokenizedline[0])
                     if not cmddata: 
                         Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
-                if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
-                    Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
-                if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
-                    Error().OutError(f"'{tokenizedline[0]}' is a one executing data command. Malformed line for one-execution-data commands",iter1)
-                elif tokenizedline[0] in Keyword().GetTwoOrMoreVariableCommand() and len(tokenizedline) < 2: 
-                    Error().OutError("'{tokenizedline[0]}' is a two-or-more executing data command. Malformed line for two-or more execution-data commands",iter1)
-                elif tokenizedline[0] == "mkcmd" and len(tokenizedline) >= 2:
-                    for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
-            self.__firstpass,self.__memory[11] = True,[]
-        if not self.__secondpass: 
-            #_______SECOND PASS______
-            for iter1 in range(startpointer,len(self.__code)): #Second pass. Declares memory/functions/variables. This does not impact the memory.
-                tokenizedline = self.__code[iter1]
-                if not tokenizedline: continue
-                if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
-                    if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
-                    else: self.__infunction = False 
-                    if self.__functioncall: break
-                    self.__memory[8][1] = self.__memory[8][0]
-                    try:self.__memory[2].pop()
-                    except:self.__infunction = False 
-                    try:self.__memory[8][0] = self.__memory[2][-2]
-                    except:self.__memory[8][0] == 23455432
-                    if self.__memory[2]:self.__infunction = True 
-                    continue
-                if len(tokenizedline) > 1 and tokenizedline[0] == "endf":
-                    Error().OutError("Invalid usage of 'endf' command",iter1)
-                if (self.__infunction or self.__inlabel) and not self.__functioncall:
-                    continue
-                elif tokenizedline[0] == "decm": 
-                    if not tokenizedline[1].isdigit(): Error().OutError(f"Cannot create memory of '{tokenizedline[1]}' places.",iter1)
-                    self.__totalmemory = tokenizedline[1]
-                elif tokenizedline[0] == "decv":
-                    if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for variable. Cannot create '{tokenizedline[1]}'",iter1)
-                    returnval,returnstate = self.decv(tokenizedline[1:])
-                    if not returnval: Error().OutError(returnstate,iter1)
-                elif tokenizedline[0] == "decf":
-                    if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for module. Cannot create '{tokenizedline[1]}'",iter1)
-                    self.__infunction = True 
-                    self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"fnc"]) #Function format: [<Top function>,<fncname>,<fncpointer>,"fnc"]
-                    self.__memory[2].append(tokenizedline[1])
-                    self.__memory[8][1] = tokenizedline[1]
-                    try:self.__memory[8][0] = self.__memory[2][-2]
-                    except:self.__memory[8][0] = 23455432
-                elif tokenizedline[0] == "decl" and (len(tokenizedline) < 2 or len(tokenizedline)>3):Error().OutError("Malformed line for 'decl' command",iter1)
-                elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "dne" or tokenizedline[2] == "e"):
-                    if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
-                    self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
-                    self.__memory[8][2] = tokenizedline[1]
-                elif tokenizedline[0] == "decl" and len(tokenizedline) == 2: 
-                    if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
-                    self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
-                    self.__memory[10].append(tokenizedline[1])
-                elif tokenizedline[0] == "endl" and len(tokenizedline) == 1:
-                    if self.__memory[8][2] == None: Error().OutError("No label declared to end",iter1)
-                    try:self.__memory[10].pop()
-                    except:pass
-                elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 2:
-                    fncdata = self.findfnc(tokenizedline[1])
-                    if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
-                    self.__memory[11].append([tokenizedline[1],iter1]) # Format: [<function name>,<function pointer>] 
-            self.__firstpass,self.__functioncall,self.__infunction,self.__inlabel,self.__labelcall = True,False,False,False,False
-        # ____________________ THIRD PASS ____________________
+                else: 
+                    filename = tokenizedline[0].split("@")[0]
+                    if filename not in self.__broughtfiles: 
+                        Error().OutError(f"No code files '{filename}' loaded to reference commands.",iter1)
+
+            if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
+                Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
+            if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
+                Error().OutError(f"'{tokenizedline[0]}' is a one executing data command. Malformed line for one-execution-data commands",iter1)
+            elif tokenizedline[0] in Keyword().GetTwoOrMoreVariableCommand() and len(tokenizedline) < 2: 
+                Error().OutError("'{tokenizedline[0]}' is a two-or-more executing data command. Malformed line for two-or more execution-data commands",iter1)
+            if tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
+                self.verifyName(tokenizedline[1])
+                for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
+            elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:
+                if tokenizedline[1] == "/":path = self.__dirpath + tokenizedline[2] + '.ds'
+                else: 
+                    if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",iter1)
+                    path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
+                try: 
+                    file = open(path,'r')
+                    self.__broughtfiles.append(path.split("/")[-1])
+                    lines = file.readlines()
+                    if not lines: continue
+                    Codelines = Tokenizer().HandleCode(lines)
+                    self.handlebring(Codelines,tokenizedline[2])
+                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist",f"FILEERROR@{iter1}")
+            self.__code.append(tokenizedline)
+    def secondpass(self,startpointer):
+       #_______SECOND PASS______
+        try:self.__code[startpointer]
+        except: Error().OutError("No code line(s) found for the called function",startpointer) 
+        for iter1 in range(startpointer,len(self.__code)): #Second pass. Declares memory/functions/variables. This does not impact the memory.
+            tokenizedline = self.__code[iter1]
+            if not tokenizedline: continue
+            if tokenizedline[0] == "":
+                self.__code[iter1] = []
+                continue
+            if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
+                if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
+                else: self.__infunction = False 
+                if self.__functioncall: break
+                self.__memory[8][1] = self.__memory[8][0]
+                try:self.__memory[2].pop()
+                except:self.__infunction = False 
+                try:self.__memory[8][0] = self.__memory[2][-2]
+                except:self.__memory[8][0] == 23455432
+                if self.__memory[2]:self.__infunction = True 
+                continue
+            if len(tokenizedline) > 1 and tokenizedline[0] == "endf":
+                Error().OutError("Invalid usage of 'endf' command",iter1)
+            if (self.__infunction or self.__inlabel) and not self.__functioncall:
+                continue
+            elif tokenizedline[0] == "decm": 
+                if not tokenizedline[1].isdigit(): Error().OutError(f"Cannot create memory of '{tokenizedline[1]}' places.",iter1)
+                self.__totalmemory = tokenizedline[1]
+            elif tokenizedline[0] == "decv":
+                if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for variable. Cannot create '{tokenizedline[1]}'",iter1)
+                returnval,returnstate = self.decv(tokenizedline[1:])
+                if not returnval: Error().OutError(returnstate,iter1)
+            elif tokenizedline[0] == "decf":
+                if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for module. Cannot create '{tokenizedline[1]}'",iter1)
+                self.__infunction = True 
+                self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"fnc"]) #Function format: [<Top function>,<fncname>,<fncpointer>,"fnc"]
+                self.__memory[2].append(tokenizedline[1])
+                self.__memory[8][1] = tokenizedline[1]
+                try:self.__memory[8][0] = self.__memory[2][-2]
+                except:self.__memory[8][0] = 23455432
+            elif tokenizedline[0] == "decl" and (len(tokenizedline) < 2 or len(tokenizedline)>3):Error().OutError("Malformed line for 'decl' command",iter1)
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "dne" or tokenizedline[2] == "e"):
+                if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
+                self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
+                self.__memory[8][2] = tokenizedline[1]
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 2: 
+                if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
+                self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
+                self.__memory[10].append(tokenizedline[1])
+            elif tokenizedline[0] == "endl" and len(tokenizedline) == 1:
+                if self.__memory[8][2] == None: Error().OutError("No label declared to end",iter1)
+                try:self.__memory[10].pop()
+                except:pass
+            elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 2:
+                fncdata = self.findfnc(tokenizedline[1])
+                if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
+                self.__memory[11].append([tokenizedline[1],iter1]) # Format: [<function name>,<function pointer>] 
+    def thirdpass(self,startpointer):
+        try:self.__code[startpointer]
+        except: Error().OutError("No code line(s) found for the called function",startpointer) 
         for iter1 in range(startpointer,len(self.__code)):
             try:self.__code[iter1]
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
-            if not line: continue
+            if not line or (len(line) == 1 and not line[0]): continue
             elif line[0] == "decv" or line[0] == "mkcmd" or line[0] == "decm": continue
             elif line[0] == "endf" and len(line) == 1 and not self.__inlabel:
                 if not self.__infunction and self.__functioncall: Error().OutError("No function found to end",iter1) 
@@ -263,7 +310,7 @@ class Interpreter:
             elif line[0] == "div" and len(line) > 3: 
                 returnval,returnstate = self.div(line[1:])
                 if not returnval: Error().OutError(returnstate,iter1)
-            elif line[0] != "endf" and line[0] != "endl": 
+            elif line[0] != "endf" and line[0] != "endl" and line[0] != "": #This is to make sure that other user made commands work 
                 cmddata = self.searchcmd(line[0])
                 if not cmddata: Error().OutError(f"'{line[0]}' does not reference any function. Invalid command",iter1)
                 self.__recursioncount += 1 
@@ -309,15 +356,48 @@ class Interpreter:
                 self.__recursioncount -= 1 
                 continue
 
-        if self.__totalmemory == 0: self.__storewarnings.append("Memory was not declared.")
-        for each in self.__storewarnings:Warnings().OutWarning(each)
 
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
             if each[0] == cmd: return each
         return []
 
-    def div(self,divvalues) -> tuple[bool,str]:
+    def handlebring(self,Codelines,filename): 
+        for iter1 in range(len(Codelines)):
+            if Codelines[iter1][0] == "mkcmd" and len(Codelines) == 3:
+                fncname = Codelines[iter1][2]
+                state = self.fncfromname(fncname,Codelines)
+                if not state: Error().OutError(f"'{Codelines[iter1][1]}' does not reference any function. Cannot create the command",f"{filename}@{iter1}")
+                self.__broughtlines += Codelines[state[0]:state[1]]
+            elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:
+                if tokenizedline[1] == "/":path = tokenizedline[2] + '.ds'
+                else: 
+                    if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",f"FILEERROR@{iter1}")
+                    path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
+                try: 
+                    file = open(path,'r')
+                    lines = file.readlines()
+                    if not lines: continue
+                    Codelines = Tokenizer().HandleCode(lines)
+                    self.handlebring(Codelines,tokenizedline[2])
+                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist",f"FILEERROR@{iter1}")
+
+    def fncfromname(self,fncname,Codelines) -> tuple[int,int]:
+        start,end,fncstack = None,None,[]
+        for iter1 in range(len(Codelines)): 
+            if Codelines[iter1][1] == name:
+                start = iter1
+                fncstack.append(each)
+            elif Codelines[iter1][0] == "decf": 
+                fncstack.append(Codelines[iter1][1])
+            elif Codelines[iter1][0] == "endf":
+                fncname = fncstack.pop()
+                if fncname == each: 
+                    end = iter1
+                    return [startval,endval]
+        return []
+    
+    def div(self,divvalues) -> tuple[bool,str]: 
         prioritydata = 0 
         storevalue = divvalues[-1]
         dt = self.determinedt(divvalues[0])
@@ -728,6 +808,7 @@ class Interpreter:
         else:return False, "CRITICAL ERROR. INTERPRETER FAIL"
 
     def determinedt(self,data) -> str|None:
+        if not data: return "varchar"
         if data == "F" or data == "T":return "bool"
         if data[0] == '"' and data[-1] == '"':return "varchar"
         if data[0] == '"' and data[-1] != '"' or (data[0] != '"' and data[-1] == '"'):return None
