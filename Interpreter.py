@@ -117,7 +117,7 @@ class Interpreter:
                 Error().OutError("Invalid usage of 'endf' command",iter1)
             if (self.__infunction or self.__inlabel) and not self.__functioncall:
                 continue
-            elif tokenizedline[0] == "decm": 
+            if tokenizedline[0] == "decm": 
                 if not tokenizedline[1].isdigit(): Error().OutError(f"Cannot create memory of '{tokenizedline[1]}' places.",iter1)
                 self.__totalmemory = tokenizedline[1]
             elif tokenizedline[0] == "decv":
@@ -145,10 +145,10 @@ class Interpreter:
                 if self.__memory[8][2] == None: Error().OutError("No label declared to end",iter1)
                 try:self.__memory[10].pop()
                 except:pass
-            elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 2:
-                fncdata = self.findfnc(tokenizedline[1])
+            elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
+                fncdata = self.findfnc(tokenizedline[2])
                 if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
-                self.__memory[11].append([tokenizedline[1],iter1]) # Format: [<function name>,<function pointer>] 
+                self.__memory[11].append([tokenizedline[1],fncdata[2]]) # Format: [<function name>,<function pointer>]
     def thirdpass(self,startpointer):
         try:self.__code[startpointer]
         except: Error().OutError("No code line(s) found for the called function",startpointer) 
@@ -179,7 +179,6 @@ class Interpreter:
                 else: return False, "Invalid way of declaring a label. Mid-line commands as 'dne' or 'e' can only be used. "
 
             if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):continue
-
             if line[0] == "call":
                 self.__recursioncount += 1 
                 if self.__recursioncount >= 800: 
@@ -211,7 +210,9 @@ class Interpreter:
                 self.__memory[8][0] = self.__memory[8][1]
                 self.__memory[8][1] = fncdata[1]
                 self.__secondpass,self.__infunction,self.__functioncall = False,True,True
-                self.Interpret(fncdata[2] + 1)
+                self.secondpass(fncdata[2]+1)
+                self.__infunction, self.__functioncall = True,True
+                self.thirdpass(fncdata[2]+1)
                 self.__firstpass = True
                 self.__memory[8][1] = fncdata[0]
                 if self.__memory[8][1] != 23455432:
@@ -220,18 +221,7 @@ class Interpreter:
                 self.__memory[1] = self.__memory[5].pop()
                 self.__recursioncount -= 1 
                 continue
-            elif line[0] == "decf":
-                self.__infunction = True
-                self.__functioncall = False
-            elif line[0] == "set":
-                returnval,returnstate = self.setvar(line[1:])
-                if not returnval:Error().OutError(returnstate,iter1)
-            elif line[0] == "out":
-                returnval,returnstate = self.out(line[1:])
-                if not returnval:Error().OutError(returnstate,iter1)
-            elif line[0] == "in":
-                returnval,returnstate = self.inp(line[1:])
-                if not returnval:Error().OutError(returnstate,iter1)
+
             elif line[0] == "loop":
                 labelname,startval,endval = line[-1],line[1],line[2]
                 if len(line) != 4: Error().OutError("Malformed line for loop", iter1)
@@ -255,10 +245,23 @@ class Interpreter:
                     self.__labelcall = True
                     self.__memory[8][2] = line[1] 
                     self.__memory[10].append(line[1])
-                    self.Interpret(labeldata[2] + 1)
+                    self.thirdpass(labeldata[2]+1)
                 try: self.__memory[8][2] = self.__memory[10].pop()
                 except:self.__memory[8][2] = None 
                 if not self.__memory[10]: self.__inlabel,self.__labelcall = False, False
+
+            elif line[0] == "decf":
+                self.__infunction = True
+                self.__functioncall = False
+            elif line[0] == "set":
+                returnval,returnstate = self.setvar(line[1:])
+                if not returnval:Error().OutError(returnstate,iter1)
+            elif line[0] == "out":
+                returnval,returnstate = self.out(line[1:])
+                if not returnval:Error().OutError(returnstate,iter1)
+            elif line[0] == "in":
+                returnval,returnstate = self.inp(line[1:])
+                if not returnval:Error().OutError(returnstate,iter1)
 
             elif line[0] == "cmpt" or line[0] == "cmpf":
                 if len(line) == 2 and line[0] == "cmpt":
@@ -286,7 +289,7 @@ class Interpreter:
                         self.__labelcall,self.__inlabel = True,True
                         self.__memory[8][2] = labelname
                         self.__memory[10].append(labelname)
-                        self.Interpret(int(labeldata[2]) + 1)
+                        self.thirdpass(labeldata[2]+1)
                         try:self.__memory[8][2] = self.__memory[10].pop()
                         except:self.__memory[8][2] = None
                         if not self.__memory[10]: self.__inlabel,self.__labelcall = False,False
@@ -317,7 +320,8 @@ class Interpreter:
                 if self.__recursioncount >= 800: 
                     Error().OutError("Recursion limit (800 recursions) reached.",iter1)
                 self.__memory[7] = []
-                fncdata = self.findfnc(line[0])
+                fncname = self.__code[cmddata[1]][1]
+                fncdata = self.findfnc(fncname)
                 if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
                     Error().OutError(f"Function not declared, '{line[0]}'",iter1)
                 self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
@@ -346,7 +350,9 @@ class Interpreter:
                 self.__memory[8][0] = self.__memory[8][1]
                 self.__memory[8][1] = fncdata[1]
                 self.__secondpass,self.__infunction,self.__functioncall = False,True,True
-                self.Interpret(fncdata[2] + 1)
+                self.secondpass(fncdata[2]+1)
+                self.__infunction,self.__functioncall = True,True 
+                self.thirdpass(fncdata[2]+1)
                 self.__firstpass = True
                 self.__memory[8][1] = fncdata[0]
                 if self.__memory[8][1] != 23455432:
