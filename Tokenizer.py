@@ -1,6 +1,12 @@
 class Tokenizer:
 
     def HandleCode(self,Code) -> list:
+        if Code[:6] == "!File:":
+            file = open(Code[6:],'r')
+            lines = file.readlines()
+            if not lines: return []
+            Code = ''.join(lines)
+        
         Code = Code.split("\n")
         for iter1 in range(len(Code)):
             Code[iter1] = Code[iter1].strip()
