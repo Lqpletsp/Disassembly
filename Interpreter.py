@@ -23,6 +23,8 @@ class Interpreter:
         self.__dirpath:str = pathtoffiledir
         self.__broughtlines:list = []
         self.__broughtfiles:list = []
+        self.__appendline:bool = True
+        self.__currentfile:str = "main"
 
         """MEMORY FORMAT: 
 
@@ -39,15 +41,19 @@ class Interpreter:
 
     def Interpret(self,startpointer,code) -> None: 
         if not self.__firstpass: 
+            self.__code.append("F!le:main")
             self.firstpass(code)
-        if self.__broughtlines: 
-            self.firstpass(self.__broughtlines)
-        self.__firstpass,self.__memory[11] = True,[]
-        self.__code += self.__broughtlines
+        for iter1 in range(len(self.__broughtlines)):
+            self.__appendline = False
+            self.firstpass(self.__broughtlines[iter1])
+            self.__code = self.__broughtlines[iter1] + self.__code
+        self.__currentfile,self.__firstpass,self.__memory[11]= "main",True,[]
         if not self.__secondpass: 
             self.secondpass(startpointer)
             self.__firstpass,self.__functioncall,self.__infunction,self.__inlabel,self.__labelcall = True,False,False,False,False
         self.thirdpass(startpointer)
+        if self.__infunction or (self.__infunction and self.__functioncall):
+            Error().OutError(f"Module '{self.__memory[8][1]}' declared but not ended.",len(self.__code))            
         if self.__totalmemory == 0: self.__storewarnings.append("Memory was not declared.")
         for each in self.__storewarnings:Warnings().OutWarning(each)
 
@@ -61,14 +67,17 @@ class Interpreter:
                 continue
             if tokenizedline[0] not in Keyword().GetCommands():
                 if "@" not in tokenizedline[0]:
+                    if  tokenizedline[:5] == "F!le" or ''.join(tokenizedline[:5]) == "F!le:":
+                        self.__currentfile = ''.join(tokenizedline[5:])
+                        continue
                     cmddata = self.searchcmd(tokenizedline[0])
                     if not cmddata: 
-                        Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found.",iter1)
+                        Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found. \n '{tokenizedline}'",iter1)
                 else: 
-                    filename = tokenizedline[0].split("@")[0]
+                    filename,command = tokenizedline[0].split("@")
                     if filename not in self.__broughtfiles: 
-                        Error().OutError(f"No code files '{filename}' loaded to reference commands.",iter1)
-
+                        Error().OutError(f"No code files '{filename}' loaded to reference a module for '{command}' command.",iter1)
+                    else: self.__memory[11].append(tokenizedline[0])
             if (tokenizedline[0] == "endf" or tokenizedline[0] == "endl") and len(tokenizedline) > 1:
                 Error().OutError(f"end commands do not take any execution data. Invalid execution-data: {tokenizedline[1:]}",iter1)
             if tokenizedline[0] in Keyword().GetOneVariableCommand() and len(tokenizedline) != 2: 
@@ -78,20 +87,21 @@ class Interpreter:
             if tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
                 self.verifyName(tokenizedline[1])
                 for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
-            elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:
-                if tokenizedline[1] == "/":path = self.__dirpath + tokenizedline[2] + '.ds'
+            if tokenizedline[0] == "bring" and len(tokenizedline) > 2:
+                if tokenizedline[1] == "/":path = self.__dirpath + "/" + tokenizedline[2] + '.ds'
                 else: 
                     if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",iter1)
                     path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
                 try: 
                     file = open(path,'r')
-                    self.__broughtfiles.append(path.split("/")[-1])
-                    lines = file.readlines()
-                    if not lines: continue
-                    Codelines = Tokenizer().HandleCode(lines)
-                    self.handlebring(Codelines,tokenizedline[2])
                 except:Error().OutError(f"File '{tokenizedline[2]}' does not exist",f"FILEERROR@{iter1}")
-            self.__code.append(tokenizedline)
+                self.__broughtfiles.append(path.split("/")[-1][:len(tokenizedline[2])])
+                Codelines = Tokenizer().HandleCode(f"!File:{path}")
+                self.handlebring(Codelines,tokenizedline[2])
+                self.__code.append([])
+                continue
+            if self.__appendline:
+                self.__code.append(tokenizedline)
     def secondpass(self,startpointer):
        #_______SECOND PASS______
         try:self.__code[startpointer]
@@ -148,7 +158,13 @@ class Interpreter:
             elif tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
                 fncdata = self.findfnc(tokenizedline[2])
                 if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
-                self.__memory[11].append([tokenizedline[1],fncdata[2]]) # Format: [<function name>,<function pointer>]
+                if self.__currentfile != "main":
+                    self.__memory[11].append([self.__currentfile + tokenizedline[1],fncdata[2]]) # Format: [<command name>,<function pointer>]
+                else: self.__memory[11].append([tokenizedline[1],fncdata[2]])
+            elif tokenizedline[:5] == "F!le:" or ''.join(tokenizedline[:5]) == "F!le:":
+                try:self.__currentfile = ''.join(tokenizedline[5:])
+                except: self.__currentfile = tokenizedline[5:]
+                continue
     def thirdpass(self,startpointer):
         try:self.__code[startpointer]
         except: Error().OutError("No code line(s) found for the called function",startpointer) 
@@ -157,6 +173,9 @@ class Interpreter:
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
             if not line or (len(line) == 1 and not line[0]): continue
+            if ''.join(line) and ''.join(line)[:5] == "F!le:":
+                self.__currentfile = ''.join(line)[5:]
+                continue
             elif line[0] == "decv" or line[0] == "mkcmd" or line[0] == "decm": continue
             elif line[0] == "endf" and len(line) == 1 and not self.__inlabel:
                 if not self.__infunction and self.__functioncall: Error().OutError("No function found to end",iter1) 
@@ -315,7 +334,9 @@ class Interpreter:
                 if not returnval: Error().OutError(returnstate,iter1)
             elif line[0] != "endf" and line[0] != "endl" and line[0] != "": #This is to make sure that other user made commands work 
                 cmddata = self.searchcmd(line[0])
-                if not cmddata: Error().OutError(f"'{line[0]}' does not reference any function. Invalid command",iter1)
+                if not cmddata:
+                    print(line[0])
+                    Error().OutError(f"'{line[0]}' does not reference any function. Invalid command",iter1)
                 self.__recursioncount += 1 
                 if self.__recursioncount >= 800: 
                     Error().OutError("Recursion limit (800 recursions) reached.",iter1)
@@ -368,39 +389,33 @@ class Interpreter:
             if each[0] == cmd: return each
         return []
 
-    def handlebring(self,Codelines,filename): 
+    def handlebring(self,Codelines,filename):
         for iter1 in range(len(Codelines)):
-            if Codelines[iter1][0] == "mkcmd" and len(Codelines) == 3:
-                fncname = Codelines[iter1][2]
-                state = self.fncfromname(fncname,Codelines)
+            self.__bring = True
+            tokenizedline = Codelines[iter1]
+            if not tokenizedline: continue
+            if tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
+                fncname = tokenizedline[2]
+                state = self.fncfromname(fncname,Codelines,filename)
                 if not state: Error().OutError(f"'{Codelines[iter1][1]}' does not reference any function. Cannot create the command",f"{filename}@{iter1}")
-                self.__broughtlines += Codelines[state[0]:state[1]]
-            elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:
-                if tokenizedline[1] == "/":path = tokenizedline[2] + '.ds'
-                else: 
-                    if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",f"FILEERROR@{iter1}")
-                    path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
-                try: 
-                    file = open(path,'r')
-                    lines = file.readlines()
-                    if not lines: continue
-                    Codelines = Tokenizer().HandleCode(lines)
-                    self.handlebring(Codelines,tokenizedline[2])
-                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist",f"FILEERROR@{iter1}")
+                self.__broughtlines.extend([[f"F!le:{filename}"] + Codelines[state[0]:state[1]+1] + [tokenizedline]])# This will attach the mkcmd line with the module
+            elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:self.__broughtlines.append(tokenizedline)
 
-    def fncfromname(self,fncname,Codelines) -> tuple[int,int]:
+    def fncfromname(self,fncname,Codelines,filename) -> tuple[int,int]:
         start,end,fncstack = None,None,[]
-        for iter1 in range(len(Codelines)): 
-            if Codelines[iter1][1] == name:
+        for iter1 in range(len(Codelines)):
+            if Codelines[iter1][0] == "decf" and Codelines[iter1][1] == fncname:
                 start = iter1
-                fncstack.append(each)
+                fncstack.append(fncname)
             elif Codelines[iter1][0] == "decf": 
                 fncstack.append(Codelines[iter1][1])
             elif Codelines[iter1][0] == "endf":
-                fncname = fncstack.pop()
-                if fncname == each: 
+                topfncname = fncstack.pop()
+                if topfncname == fncname: 
                     end = iter1
-                    return [startval,endval]
+                    return [start,end]
+        if fncstack and len(fncstack) == 1: Error().OutError(f"'{fncname}' module used but not ended.",f"{filename}@{start}")
+        elif len(fncstack) > 1: Error().OutError(f"'{fncname}' module has other modules that are used but not ended",f"{filename}@{start}")
         return []
     
     def div(self,divvalues) -> tuple[bool,str]: 
