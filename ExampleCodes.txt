@@ -1,5 +1,6 @@
 """
 |This is a comment|
+|NOTE: The main.py file must be executable and code can only be executed if '<bash-command> <path-to-file>'. To know more, view the main.py file|
 """
 
 """
