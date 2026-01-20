@@ -552,26 +552,42 @@ class Interpreter:
         for each in incvalues: 
             dt = self.determinedt(each)
             if dt != 'var':return False,"Can only increment int/float variables"
-            variabledata = self.searchvariables(each)
-            if not variabledata: return False, f"Variable not declared, {each}"
-            if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot increment varchar/boolean data"
-            if variabledata[2] != "None":
-                self.__memory[9] -= len(str(int(float(variabledata[2]))))
-                self.checkmemory()
-                self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
-                self.checkmemory()
-                state = self.storedata(variabledata[0],float(variabledata[2])+1)
+            if incvalues == "temp":
+                try:data = self.__memory[4].pop() 
+                except:return False, "temp is empty"
+                try: 
+                    data = float(data) + 1 
+                    self.__memory[4].append(data)
+                except:
+                    return False, "temp contains varchar/boolean data that cannot be incremented"
             else:
-                self.__memory[9] += 1 
-                self.checkmemory()
-                state = self.storedata(variabledata[0],str(float(1)))
-            if not state:return False, "CRITICAL ERROR"
+                variabledata = self.searchvariables(each)
+                if not variabledata: return False, f"Variable not declared, {each}"
+                if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot increment varchar/boolean data"
+                if variabledata[2] != "None":
+                    self.__memory[9] -= len(str(int(float(variabledata[2]))))
+                    self.checkmemory()
+                    self.__memory[9] +=  len(str(int(float(variabledata[2])+1)))
+                    self.checkmemory()
+                    state = self.storedata(variabledata[0],float(variabledata[2])+1)
+                else:
+                    self.__memory[9] += 1 
+                    self.checkmemory()
+                    state = self.storedata(variabledata[0],str(float(1)))
+                if not state:return False, "CRITICAL ERROR"
         return True, ""
 
     def dec(self,decvalues) -> tuple[bool,str]:
         for each in decvalues: 
             dt = self.determinedt(each)
             if dt != 'var':return False,"Can only increment int/float variables"
+            if each == "temp":
+                try: data = self.__memory[4].pop()
+                except: return False, "temp is empty"
+                try: 
+                    data = float(data) - 1
+                    self.__memory[4].append(data)
+                except:return False,"temp contains varchar/boolean data that cannot be decremented"
             variabledata = self.searchvariables(each)
             if not variabledata: return False, f"Variable not declared, {each}"
             if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot decrement varchar/boolean data"
@@ -760,8 +776,12 @@ class Interpreter:
             try:
                 if int(sudostore):dt = "num"
             except:dt = "notnum"
-            if inpval[0] == "temp": self.__memory[3].append(sudostore)
-            else: 
+            if inpval[0] == "temp": 
+                try:
+                    self.__memory[3].append(float(sudostore))
+                except: 
+                    self.__memory[3].append(str(sudostore))
+            else:
                 variabledata = self.searchvariables(inpval[0])
                 if not variabledata: return False, f"Variable not declared, '{inpval[0]}'"
                 if dt == "notnum" and (variabledata[1] == "int" or variabledata[1] == "float"):return False, "Cannot store varchar data in non-varchar data-type"
@@ -774,13 +794,17 @@ class Interpreter:
             dt = self.determinedt(each)
             if not dt: return False,"Inappropriate representation of string data"
             if dt == "var":
-                variabledata = self.searchvariables(each)
-                if not variabledata: return False, f"Variable not declared, {each}"
-                try:
-                    if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
-                    elif variabledata[1] == "float":print(str(float(variabledata[2].strip('"'))),end="")
-                except:print("empt",end="")
-                if variabledata[1] == "varchar": print(str(variabledata[2].strip('"')),end="")
+                if each == "temp":
+                    try: print(self.__memory[3].pop(),end="")
+                    except:return False, "temp is empty"
+                else:
+                    variabledata = self.searchvariables(each)
+                    if not variabledata: return False, f"Variable not declared, {each}"
+                    try:
+                        if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
+                        elif variabledata[1] == "float":print(str(float(variabledata[2].strip('"'))),end="")
+                    except:print("empt",end="")
+                    if variabledata[1] == "varchar": print(str(variabledata[2].strip('"')),end="")
             elif dt == "int":print(str(int(float(each.strip('"')))),end="")
             elif dt == "varchar":print(str(each.strip('"')),end="")
         print()
@@ -790,44 +814,42 @@ class Interpreter:
         datatype = declaration[-1]
         if datatype not in Keyword().GetDataTypes():return False,"No appropriate data-type given for variable declaration"
         for iter1 in range(len(declaration)-1):
-            if declaration[iter1] == "temp":self.__storewarnings.append("Variable name: 'temp'. Can lead to unexpected outputs")
+            if declaration[iter1] == "temp":self.__storewarnings.append("Variable name 'temp' can lead to unexpected results")
             elif not self.verifyName(declaration[iter1]): return False, f"Invalid variable name given. \n Cannot declare '{declaration[iter1]}'"
             self.__memory[0].append([declaration[iter1],datatype,"None"]) #Variable Format: [<variable name>,<variable data-type>, <data>]
         return True,""
 
     def setvar(self,declaration) -> tuple[bool,str]: 
-        if declaration[-1] != "temp":
-            dt = self.determinedt(declaration[-1])
-            if not dt: return False, "Inappropriate representation of string data"
-            elif dt == "var":
+        dt = self.determinedt(declaration[-1])
+        if not dt: return False, "Inappropriate representation of string data"
+        elif dt == "var":
+            if declaration[-1] != "temp":
                 variabledata = self.searchvariables(declaration[-1])
                 data = variabledata[2]
                 dt = variabledata[1]
-            else: data = declaration[-1]
+        else: data = declaration[-1]
+        for iter1 in range(len(declaration)-1):
             self.__memory[9] += len(data)
             self.checkmemory()
-            for iter1 in range(len(declaration)-1):
-                variabledata = self.searchvariables(declaration[iter1])
-                if not variabledata:return False, f"Variable not declared, '{declaration[iter1]}'"
-                if variabledata[0] == "temp":self.__storewarnings.append("'temp' variable name detected. Can cause unexpected results.")
-                if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"): 
-                    state = self.storedata(variabledata[0],data)
-                    if not state: return False, "CRITICAL ERROR"
-                else: 
-                    return False, "Cannot store in different data-type variable"
-            return True,""
-        elif declaration[-1] == "temp":
-            if len(declaration) != len(self.__memory[3]):return False, "'temp' does not store enough data to set in declared variable(s)"
-            for iter1 in range(len(declaration)):
-                datadt = self.determinedt(self.__memory[3][iter1])
-                variabledata = self.searchvariables(declaration[iter1])
-                if not variabledata:return False,f"Variable not declared, '{declaration[iter1]}'"
-                if datadt != variabledata[1]:return False, f"Cannot store data in a different data-type variable, '{variabledata[0]}'"
-                state = self.storedata(variabledata[0],self.__memory[3][iter1].pop())
-                if not state:return False,f"CRITICAL ERROR" 
-            return True,""
-        else:return False, "CRITICAL ERROR. INTERPRETER FAIL"
+            variabledata = self.searchvariables(declaration[iter1])
+            if not variabledata:return False, f"Variable not declared, '{declaration[iter1]}'"
+            if variabledata[0] == "temp":
+                try:
+                    self.__memory[3].append(float(data))
+                except:
+                    self.__memory[3].append(str(data))
+            if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"): 
+                if declaration[-1] != "temp":state = self.storedata(variabledata[0],data)
+                elif declaration[-1] == "temp":
+                    try: 
+                        state = self.storedata(variabledata[0],self.__memory[4].pop())
+                    except: 
+                        return False, "temp is empty"
+                if not state: return False, "CRITICAL ERROR"
+            else: 
+                return False, "Cannot store in different data-type variable"
 
+        return True,""
     def determinedt(self,data) -> str|None:
         if not data: return "varchar"
         if data == "F" or data == "T":return "bool"
