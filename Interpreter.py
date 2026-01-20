@@ -52,7 +52,7 @@ class Interpreter:
             self.secondpass(startpointer)
             self.__firstpass,self.__functioncall,self.__infunction,self.__inlabel,self.__labelcall = True,False,False,False,False
         self.thirdpass(startpointer)
-        if self.__infunction or (self.__infunction and self.__functioncall):
+        if (self.__infunction or (self.__infunction and self.__functioncall)) and self.__memory[8][1] != 23455432:
             Error().OutError(f"Module '{self.__memory[8][1]}' declared but not ended.",len(self.__code))            
         if self.__totalmemory == 0: self.__storewarnings.append("Memory was not declared.")
         for each in self.__storewarnings:Warnings().OutWarning(each)
@@ -159,7 +159,7 @@ class Interpreter:
                 fncdata = self.findfnc(tokenizedline[2])
                 if not fncdata: Error().OutError(f"Cannot create a user command with a non-existing module: '{tokenizedline[1]}'",iter1)
                 if self.__currentfile != "main":
-                    self.__memory[11].append([self.__currentfile + tokenizedline[1],fncdata[2]]) # Format: [<command name>,<function pointer>]
+                    self.__memory[11].append([self.__currentfile + "@" + tokenizedline[1],fncdata[2]]) # Format: [<command name>,<function pointer>]
                 else: self.__memory[11].append([tokenizedline[1],fncdata[2]])
             elif tokenizedline[:5] == "F!le:" or ''.join(tokenizedline[:5]) == "F!le:":
                 try:self.__currentfile = ''.join(tokenizedline[5:])
@@ -335,7 +335,6 @@ class Interpreter:
             elif line[0] != "endf" and line[0] != "endl" and line[0] != "": #This is to make sure that other user made commands work 
                 cmddata = self.searchcmd(line[0])
                 if not cmddata:
-                    print(line[0])
                     Error().OutError(f"'{line[0]}' does not reference any function. Invalid command",iter1)
                 self.__recursioncount += 1 
                 if self.__recursioncount >= 800: 
@@ -386,7 +385,8 @@ class Interpreter:
 
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
-            if each[0] == cmd: return each
+            if each[0] == cmd:
+                return each
         return []
 
     def handlebring(self,Codelines,filename):
