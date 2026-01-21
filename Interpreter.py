@@ -22,6 +22,7 @@ class Interpreter:
         self.__recursioncount:int = 0
         self.__dirpath:str = pathtoffiledir
         self.__broughtlines:list = []
+        self.__broughtlinescount:int = 0 
         self.__broughtfiles:list = []
         self.__appendline:bool = True
         self.__currentfile:str = "main"
@@ -47,6 +48,7 @@ class Interpreter:
             self.__appendline = False
             self.firstpass(self.__broughtlines[iter1])
             self.__code = self.__broughtlines[iter1] + self.__code
+            self.__broughtlinescount += len(self.__broughtlines[iter1])
         self.__currentfile,self.__firstpass,self.__memory[11]= "main",True,[]
         if not self.__secondpass: 
             self.secondpass(startpointer)
@@ -65,6 +67,7 @@ class Interpreter:
             if not tokenizedline:
                 self.__code.append([])
                 continue
+            if self.__currentfile == "main": iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
             if tokenizedline[0] not in Keyword().GetCommands():
                 if "@" not in tokenizedline[0]:
                     if  tokenizedline[:5] == "F!le" or ''.join(tokenizedline[:5]) == "F!le:":
@@ -72,7 +75,7 @@ class Interpreter:
                         continue
                     cmddata = self.searchcmd(tokenizedline[0])
                     if not cmddata: 
-                        Error().OutError(f"Command not found: {tokenizedline[0]} \n Each line must begin with a valid command. None found. \n '{tokenizedline}'",iter1)
+                        Error().OutError(f"Command not found -> '{tokenizedline[0]}' \n Each line must begin with a valid command. None found.",iter1)
                 else: 
                     filename,command = tokenizedline[0].split("@")
                     if filename not in self.__broughtfiles: 
@@ -114,6 +117,7 @@ class Interpreter:
             if tokenizedline[0] == "":
                 self.__code[iter1] = []
                 continue
+            if self.__currentfile == "main":iter1 -= self.__broughtlinescount
             if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
                 if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
                 else: self.__infunction = False 
@@ -145,7 +149,7 @@ class Interpreter:
                 try:self.__memory[8][0] = self.__memory[2][-2]
                 except:self.__memory[8][0] = 23455432
             elif tokenizedline[0] == "decl" and (len(tokenizedline) < 2 or len(tokenizedline)>3):Error().OutError("Malformed line for 'decl' command",iter1)
-            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "dne" or tokenizedline[2] == "e"):
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "!dne" or tokenizedline[2] == "!e"):
                 if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
                 self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
                 self.__memory[8][2] = tokenizedline[1]
@@ -153,6 +157,8 @@ class Interpreter:
                 if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'",iter1)
                 self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
                 self.__memory[10].append(tokenizedline[1])
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] != "!dne" and tokenizedline[2] != "!e"):
+                Error().OutError("Invalid mid-line-commands for 'decl' command. Only '!dne' or '!e' is allowed",iter1)
             elif tokenizedline[0] == "endl" and len(tokenizedline) == 1:
                 if self.__memory[8][2] == None: Error().OutError("No label declared to end",iter1)
                 try:self.__memory[10].pop()
@@ -174,6 +180,7 @@ class Interpreter:
             try:self.__code[iter1]
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
+            if self.__currentfile == "main":iter1-=self.__broughtlinescount
             if not line or (len(line) == 1 and not line[0]): continue
             if ''.join(line) and ''.join(line)[:5] == "F!le:":
                 self.__currentfile = ''.join(line)[5:]
