@@ -8,7 +8,7 @@ from Tokenizer import Tokenizer
 sys.setrecursionlimit(810)
 
 class Interpreter: 
-    def __init__(self,pathtoffiledir) -> None: 
+    def __init__(self) -> None: 
         self.__code:list = []
         self.__infunction:bool = False
         self.__functioncall:bool = False 
@@ -20,12 +20,13 @@ class Interpreter:
         self.__firstpass:bool = False 
         self.__storewarnings:list = []
         self.__recursioncount:int = 0
-        self.__dirpath:str = pathtoffiledir
+        self.__dirpath:str = "None" 
         self.__broughtlines:list = []
         self.__broughtlinescount:int = 0 
         self.__broughtfiles:list = []
         self.__appendline:bool = True
-        self.__currentfile:str = "main"
+        self.__currentfile:str = "!/main"
+        self.__newestfileptr:int = 0 
 
         """MEMORY FORMAT: 
 
@@ -35,14 +36,16 @@ class Interpreter:
             NOTE: MEMORY USED IN THE PROGRAM IS JUST A SIMULATION. IT ONLY STORES DATA THAT IS BEING USED IN THE CODE WRITTEN IN Disassembly
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
            """
+    def setdirpath(self,pathtoffiledir):self.__dirpath = pathtoffiledir
     def getMemory(self) -> list: return self.__memory
     def getrecursioncount(self) -> int: return self.__recursioncount
     def getVariablelist(self) -> list: return self.__memory[0]
     def gettemp(self) -> list: return self.__memory[3]
+    def getCurrentfile(self) -> list: return self.__currentfile
 
     def Interpret(self,startpointer,code) -> None: 
         if not self.__firstpass: 
-            self.__code.append("F!le:main")
+            self.__code.append("F!le:!/main")
             self.firstpass(code)
         for iter1 in range(len(self.__broughtlines)):
             self.__appendline = False
@@ -67,7 +70,11 @@ class Interpreter:
             if not tokenizedline:
                 self.__code.append([])
                 continue
-            if self.__currentfile == "main": iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+            if self.__currentfile == "!/main":
+                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+            else: 
+                iter1 = self.__broughtlinescount - self.__newestfileptr
+
             if tokenizedline[0] not in Keyword().GetCommands():
                 if "@" not in tokenizedline[0]:
                     if  tokenizedline[:5] == "F!le" or ''.join(tokenizedline[:5]) == "F!le:":
@@ -92,14 +99,14 @@ class Interpreter:
                 for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
             if tokenizedline[0] == "bring" and len(tokenizedline) > 2:
                 if tokenizedline[1] == "/":
-                    if not self.__dirpath: path = tokenizedline[2] + '.ds'
+                    if self.__dirpath == "None": path = tokenizedline[2] + '.ds'
                     else:path = self.__dirpath + "/" + tokenizedline[2] + '.ds'
                 else: 
                     if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",iter1)
                     path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
                 try: 
                     file = open(path,'r')
-                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist \n Did not find path: '{path}'",f"FILEERROR@{iter1}")
+                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist \n Did not find path: '{path}'",iter1)
                 self.__broughtfiles.append(path.split("/")[-1][:len(tokenizedline[2])])
                 Codelines = Tokenizer().HandleCode(f"!File:{path}")
                 self.handlebring(Codelines,tokenizedline[2])
@@ -117,7 +124,10 @@ class Interpreter:
             if tokenizedline[0] == "":
                 self.__code[iter1] = []
                 continue
-            if self.__currentfile == "main":iter1 -= self.__broughtlinescount
+            if self.__currentfile == "!/main":
+                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+            else: 
+                iter1 = self.__broughtlinescount - self.__newestfileptr
             if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
                 if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
                 else: self.__infunction = False 
@@ -180,7 +190,10 @@ class Interpreter:
             try:self.__code[iter1]
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
-            if self.__currentfile == "main":iter1-=self.__broughtlinescount
+            if self.__currentfile == "!/main":
+                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+            else: 
+                iter1 = self.__broughtlinescount - self.__newestfileptr
             if not line or (len(line) == 1 and not line[0]): continue
             if ''.join(line) and ''.join(line)[:5] == "F!le:":
                 self.__currentfile = ''.join(line)[5:]
@@ -254,6 +267,8 @@ class Interpreter:
             elif line[0] == "loop":
                 try: labelname,startval,endval,iterationvariable = line[-1],line[1],line[2],line[3]
                 except:Error().OutError("Malformed line for 'loop' command",iter1)
+                if not self.verifyName(interationvariable):
+                    Error().OutError(f"Cannot create iterative varaible, '{iterationvariable}'",iter1)
                 if int(startval)>int(endval): continue
                 self.__memory[0].append([iterationvariable,"int",startval])
                 if len(line) != 5: Error().OutError("Malformed line for 'loop' command", iter1)
