@@ -14,7 +14,7 @@ class Interpreter:
         self.__functioncall:bool = False 
         self.__inlabel:bool = False
         self.__labelcall:bool = False
-        self.__memory:list = [[],[],[],[],[[]],[],[],[],[23455432,23455432,None],0,[],[]]
+        self.__memory:list = [[],[],[],[],[[]],[[]],[],[],[23455432,23455432,None],0,[],[]]
         self.__totalmemory:int = 0 
         self.__secondpass:bool = False
         self.__firstpass:bool = False 
@@ -88,13 +88,15 @@ class Interpreter:
                 self.verifyName(tokenizedline[1])
                 for cmdname in tokenizedline[1:]:self.__memory[11].append([cmdname,None])
             if tokenizedline[0] == "bring" and len(tokenizedline) > 2:
-                if tokenizedline[1] == "/":path = self.__dirpath + "/" + tokenizedline[2] + '.ds'
+                if tokenizedline[1] == "/":
+                    if not self.__dirpath: path = tokenizedline[2] + '.ds'
+                    else:path = self.__dirpath + "/" + tokenizedline[2] + '.ds'
                 else: 
                     if not os.path.isdir(tokenizedline[1]):Error().OutError(f"Directory path '{tokenizedline[1]}' not found",iter1)
                     path = tokenizedline[1] + '/' + tokenizedline[2]+ ".ds"
                 try: 
                     file = open(path,'r')
-                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist",f"FILEERROR@{iter1}")
+                except:Error().OutError(f"File '{tokenizedline[2]}' does not exist \n Did not find path: '{path}'",f"FILEERROR@{iter1}")
                 self.__broughtfiles.append(path.split("/")[-1][:len(tokenizedline[2])])
                 Codelines = Tokenizer().HandleCode(f"!File:{path}")
                 self.handlebring(Codelines,tokenizedline[2])
@@ -206,7 +208,10 @@ class Interpreter:
                 fncdata = self.findfnc(line[1])
                 if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
                     Error().OutError(f"Function not declared, '{line[1]}'",iter1)
-                self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[4].append([])
+                self.__memory[5].append([])
+                self.__memory[4][-1].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[5][-1].extend([[f[0],f[1],f[2],f[3]] for f in self.__memory[1]])
                 for each in line[2:]:
                     dt = self.determinedt(each)
                     if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
@@ -223,8 +228,6 @@ class Interpreter:
                     self.__memory[9] += len(str(self.__memory[7][iter2][2]))
                     self.checkmemory()
                     self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
-                for each in self.__memory[1]:
-                    self.__memory[5].append([each[0],each[1],each[2]])
                 self.__memory[1] = [fncdata]
                 self.__memory[8][0] = self.__memory[8][1]
                 self.__memory[8][1] = fncdata[1]
@@ -242,8 +245,11 @@ class Interpreter:
                 continue
 
             elif line[0] == "loop":
-                labelname,startval,endval = line[-1],line[1],line[2]
-                if len(line) != 4: Error().OutError("Malformed line for loop", iter1)
+                try: labelname,startval,endval,iterationvariable = line[-1],line[1],line[2],line[3]
+                except:Error().OutError("Malformed line for 'loop' command",iter1)
+                if int(startval)>int(endval): continue
+                self.__memory[0].append([iterationvariable,"int",startval])
+                if len(line) != 5: Error().OutError("Malformed line for 'loop' command", iter1)
                 labeldata = self.findlabel(labelname)
                 if not labeldata: Error().OutError(f"Label not declared, '{labelname}'",iter1)
                 if self.determinedt(startval) == "var":
@@ -258,13 +264,15 @@ class Interpreter:
                     if (variabledata[1] != "int" or variabledata[2] != "float"): Error().OutError("End value for a loop cannot be varchar/boolean data.",iter1)
                     if variabledata[2] == "empt": Error().OutError("Cannot use empt value for end",iter1)
                     else: endval = variabledata[2]
-                if endval > 990: sys.setrecursionlimit(endval + 1)
+                if int(endval) > 990: sys.setrecursionlimit(endval + 1)
                 for loopcmd in range(int(startval),int(endval)):
                     self.__inlabel = True
                     self.__labelcall = True
                     self.__memory[8][2] = line[1] 
                     self.__memory[10].append(line[1])
                     self.thirdpass(labeldata[2]+1)
+                    variabledata = self.searchvariables(iterationvariable)
+                    state = self.storedata(variabledata[0],int(variabledata[2])+1)
                 try: self.__memory[8][2] = self.__memory[10].pop()
                 except:self.__memory[8][2] = None 
                 if not self.__memory[10]: self.__inlabel,self.__labelcall = False, False
@@ -344,7 +352,10 @@ class Interpreter:
                 fncdata = self.findfnc(fncname)
                 if not fncdata or (fncdata[0] != self.__memory[8][1] and fncdata[1] != self.__memory[8][1]):
                     Error().OutError(f"Function not declared, '{line[0]}'",iter1)
-                self.__memory[4].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[4].append([])
+                self.__memory[5].append([])
+                self.__memory[4][-1].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[5][-1].extend([[f[0],f[1],f[2],f[3]] for f in self.__memory[1]])
                 for each in line[1:]:
                     dt = self.determinedt(each)
                     if not dt: Error().OutError(f"Invalid varchar data given: {each}",iter1)
@@ -364,8 +375,6 @@ class Interpreter:
                     self.__memory[9] += len(str(self.__memory[7][iter2][2]))
                     self.checkmemory()
                     self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
-                for each in self.__memory[1]:
-                    self.__memory[5].append([each[0],each[1],each[2]])
                 self.__memory[1] = [fncdata]
                 self.__memory[8][0] = self.__memory[8][1]
                 self.__memory[8][1] = fncdata[1]
@@ -375,13 +384,11 @@ class Interpreter:
                 self.thirdpass(fncdata[2]+1)
                 self.__firstpass = True
                 self.__memory[8][1] = fncdata[0]
-                if self.__memory[8][1] != 23455432:
-                    self.__infunction = True 
+                if self.__memory[8][1] != 23455432:self.__infunction = True 
                 self.__memory[0] = self.__memory[4].pop()
                 self.__memory[1] = self.__memory[5].pop()
                 self.__recursioncount -= 1 
                 continue
-
 
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
@@ -562,7 +569,7 @@ class Interpreter:
                     return False, "temp contains varchar/boolean data that cannot be incremented"
             else:
                 variabledata = self.searchvariables(each)
-                if not variabledata: return False, f"Variable not declared, {each}"
+                if not variabledata: return False, f"Variable not declared, '{each}'"
                 if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot increment varchar/boolean data"
                 if variabledata[2] != "None":
                     self.__memory[9] -= len(str(int(float(variabledata[2]))))
@@ -589,7 +596,7 @@ class Interpreter:
                     self.__memory[4].append(data)
                 except:return False,"temp contains varchar/boolean data that cannot be decremented"
             variabledata = self.searchvariables(each)
-            if not variabledata: return False, f"Variable not declared, {each}"
+            if not variabledata: return False, f"Variable not declared, '{each}'"
             if variabledata[1] != "float" and variabledata[1] != "int": return False, "Cannot decrement varchar/boolean data"
             if variabledata[2] != "None":
                 self.__memory[9] -= len(str(int(float(variabledata[2]))))
@@ -643,7 +650,7 @@ class Interpreter:
         return []
     def findlabel(self,labelname) -> tuple[str,str,int]:
         for each in self.__memory[1]:
-            if each[1] == labelname and each[3] == "lab": return each 
+            if each[1] == labelname and each[3] == "lab": return each
         return []
 
     def logicalstatements(self,logic) -> tuple[bool,str]:
