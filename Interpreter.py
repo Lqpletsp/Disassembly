@@ -152,7 +152,6 @@ class Interpreter:
                 if not tokenizedline[1].isdigit(): Error().OutError(f"Cannot create memory of '{tokenizedline[1]}' places.",iter1)
                 self.__totalmemory = tokenizedline[1]
             elif tokenizedline[0] == "decv":
-                if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for variable. Cannot create '{tokenizedline[1]}'",iter1)
                 returnval,returnstate = self.decv(tokenizedline[1:])
                 if not returnval: Error().OutError(returnstate,iter1)
             elif tokenizedline[0] == "decf":
@@ -237,7 +236,7 @@ class Interpreter:
                     Error().OutError(f"Function not declared, '{line[1]}'",iter1)
                 self.__memory[4].append([])
                 self.__memory[5].append([])
-                self.__memory[4][-1].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[4][-1].extend([[v[0],v[1],v[2],v[3]] for v in self.__memory[0]])
                 self.__memory[5][-1].extend([[f[0],f[1],f[2],f[3]] for f in self.__memory[1]])
                 for each in line[2:]:
                     dt = self.determinedt(each)
@@ -245,11 +244,12 @@ class Interpreter:
                     if dt == "var":
                         variabledata = self.searchvariables(each)
                         if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
-                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
+                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2],variabledata[3]])
                     else: self.__memory[7].append(['None',dt,each])
                 if len(self.__code[iter1][2:]) != len(self.__memory[7]):
                     Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
                 self.__memory[0] = []
+                self.__memory[0].extend([[v[0],v[1],v[2],v[3]] for v in self.__memory[4][-1] if v[3] == "!gl"])
                 fncdeclaration = self.__code[fncdata[2]]
                 for iter2 in range(len(fncdeclaration[2:])):
                     self.__memory[9] += len(str(self.__memory[7][iter2][2]))
@@ -383,7 +383,7 @@ class Interpreter:
                     Error().OutError(f"Function not declared, '{line[0]}'",iter1)
                 self.__memory[4].append([])
                 self.__memory[5].append([])
-                self.__memory[4][-1].extend([[v[0],v[1],v[2]] for v in self.__memory[0]])
+                self.__memory[4][-1].extend([[v[0],v[1],v[2],v[3]] for v in self.__memory[0]])
                 self.__memory[5][-1].extend([[f[0],f[1],f[2],f[3]] for f in self.__memory[1]])
                 for each in line[1:]:
                     dt = self.determinedt(each)
@@ -399,6 +399,7 @@ class Interpreter:
                     elif len(self.__code[iter1][2:]) > 1: 
                         Error().OutError(f"User-made command '{line[0]}', takes one or more than one data. {len(self.__memory[7])} given.",fncdata[2])
                 self.__memory[0] = []
+                self.__memory[0].extend([[v[0],v[1],v[2],v[3]] for v in self.__memory[4][-1] if v[3] == "!gl"])
                 fncdeclaration = self.__code[fncdata[2]]
                 for iter2 in range(len(fncdeclaration[2:])):
                     self.__memory[9] += len(str(self.__memory[7][iter2][2]))
@@ -847,13 +848,23 @@ class Interpreter:
         return True,""
 
     def decv(self,declaration) -> tuple[bool,str]:
+        gl = False
         datatype = declaration[-1]
         if datatype not in Keyword().GetDataTypes():return False,"No appropriate data-type given for variable declaration"
         for iter1 in range(len(declaration)-1):
             if declaration[iter1] == "temp":self.__storewarnings.append("Variable name 'temp' can lead to unexpected results")
+            elif declaration[iter1] == "!gl":
+                gl = True
+                continue
+            elif declaration[iter1] == "!lc":
+                gl = False
+                continue
             elif not self.verifyName(declaration[iter1]): return False, f"Invalid variable name given. \n Cannot declare '{declaration[iter1]}'"
-            self.__memory[0].append([declaration[iter1],datatype,"None"]) #Variable Format: [<variable name>,<variable data-type>, <data>]
-        return True,""
+            if gl:
+                self.__memory[0].append([declaration[iter1],datatype,"None","!gl"]) #Variable Format: [<variable name>,<variable data-type>, <data>,<scope>]
+            else: 
+                self.__memory[0].append([declaration[iter1],datatype,"None","!lc"]) #Variable Format: [<variable name>,<variable data-type>, <data>,<scope>]
+            return True,""
 
     def setvar(self,declaration) -> tuple[bool,str]: 
         dt = self.determinedt(declaration[-1])
