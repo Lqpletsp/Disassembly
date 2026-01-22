@@ -1,8 +1,5 @@
 class Errors:
-    def OutError(self,ErrorType,ErrorPointer) -> None:
-        from Interpreter import Interpreter
-        currentfile = Interpreter().getCurrentfile()
-        actuallines = Interpreter().getactuallines()
+    def OutError(self,ErrorType,ErrorPointer,currentfile) -> None:
         try:
             if int(ErrorPointer) < 0 and currentfile == "!/main": 
                 print("CRASH:Negative line-pointer for '!/main' metadata.")
@@ -13,7 +10,7 @@ class Errors:
                 print("High probability of an edge case.")
                 exit()
         except:pass
-        print(f"ERROR[{currentfile}@{actuallines}] : {ErrorType}")   
+        print(f"ERROR[{currentfile}@{ErrorPointer}] : {ErrorType}")   
         exit()
 
 
