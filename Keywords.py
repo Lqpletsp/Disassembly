@@ -2,8 +2,8 @@ class Keyword:
     def __init__(self) -> None:
         self.__Keywords:list = ["out","in","inc","dec", "decv","varchar","int","bool"
                                 ,"set","empt", "add", "minus","mult", "div","decf", "endf",
-                                "call","temp","decl","endl","dne","e","loop"]
-        self.__OneDataCommands:list = ["empt","decm"]
+                                "call","temp","decl","endl","!dne","!e","loop"]
+        self.__OneDataCommands:list = ["decm"]
         self.__TwoOrMoreDataCommands:list = ["out","inc","dec","decv","decf","set", "add",
                                                 "minus","div", "mult","cmpt","cmpf",
                                              "decl", "in", "loop"]
