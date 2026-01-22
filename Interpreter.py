@@ -1,3 +1,4 @@
+
 import sys 
 import os 
 from ErrorAndWarning import Errors as Error
@@ -27,6 +28,7 @@ class Interpreter:
         self.__appendline:bool = True
         self.__currentfile:str = "!/main"
         self.__newestfileptr:int = 0 
+        self.__actualines:int = 0
 
         """MEMORY FORMAT: 
 
@@ -37,6 +39,7 @@ class Interpreter:
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
            """
     def setdirpath(self,pathtoffiledir):self.__dirpath = pathtoffiledir
+    def getactuallines(self) -> int: return self.__actualines
     def getMemory(self) -> list: return self.__memory
     def getrecursioncount(self) -> int: return self.__recursioncount
     def getVariablelist(self) -> list: return self.__memory[0]
@@ -71,9 +74,9 @@ class Interpreter:
                 self.__code.append([])
                 continue
             if self.__currentfile == "!/main":
-                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+                self.__actualines = iter1 - self.__broughtlinescount # So that the attached line do not contribute to line-count
             else: 
-                iter1 = self.__broughtlinescount - self.__newestfileptr
+                self.__actualines = self.__broughtlinescount - self.__newestfileptr
 
             if tokenizedline[0] not in Keyword().GetCommands():
                 if "@" not in tokenizedline[0]:
@@ -125,9 +128,11 @@ class Interpreter:
                 self.__code[iter1] = []
                 continue
             if self.__currentfile == "!/main":
-                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+                self.__actualines = iter1 - self.__broughtlinescount # So that the attached line do not contribute to line-count
             else: 
-                iter1 = self.__broughtlinescount - self.__newestfileptr
+                self.__actualines = self.__broughtlinescount - self.__newestfileptr
+
+
             if len(tokenizedline) == 1 and tokenizedline[0] == "endf":
                 if self.__memory[8][1] == 23455432: Error().OutError("Invalid usage of 'endf'. No funciton declared to end... \n Current function is None",iter1)
                 else: self.__infunction = False 
@@ -190,10 +195,13 @@ class Interpreter:
             try:self.__code[iter1]
             except:Error().OutError("No executing line found.",iter1)
             line = self.__code[iter1]
+
             if self.__currentfile == "!/main":
-                iter1 -= self.__broughtlinescount # So that the attached line do not contribute to line-count
+                self.__actualines = iter1 - self.__broughtlinescount # So that the attached line do not contribute to line-count
             else: 
-                iter1 = self.__broughtlinescount - self.__newestfileptr
+                self.__actualines = self.__broughtlinescount - self.__newestfileptr
+
+
             if not line or (len(line) == 1 and not line[0]): continue
             if ''.join(line) and ''.join(line)[:5] == "F!le:":
                 self.__currentfile = ''.join(line)[5:]
@@ -210,15 +218,14 @@ class Interpreter:
                 elif not self.__inlabel and not self.__labelcall and self.__infunction: continue
                 else:continue
             elif line[0] == "decl":
-                if len(line) == 1 or (len(line) == 3 and line[2] == "e"):
+                if len(line) == 2 or (len(line) == 3 and line[2] == "!e"):
                     self.__labelcall = False
                     self.__inlabel = False
                     continue
-                elif len(line) == 3 and line[2] == "dne":
+                elif len(line) == 3 and line[2] == "!dne":
                     self.__inlabel = True
                     self.__labelcall = False
                 else: return False, "Invalid way of declaring a label. Mid-line commands as 'dne' or 'e' can only be used. "
-
             if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):continue
             if line[0] == "call":
                 self.__recursioncount += 1 
