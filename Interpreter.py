@@ -244,8 +244,8 @@ class Interpreter:
                     if dt == "var":
                         variabledata = self.searchvariables(each)
                         if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
-                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2],variabledata[3]])
-                    else: self.__memory[7].append(['None',dt,each])
+                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2],variabledata[3],"!lc"])
+                    else: self.__memory[7].append(['None',dt,each,"!lc"])
                 if len(self.__code[iter1][2:]) != len(self.__memory[7]):
                     Error().OutError(f"Inappropriate amount of parameters given for the arguments called",fncdata[2])
                 self.__memory[0] = []
@@ -277,7 +277,7 @@ class Interpreter:
                 if not self.verifyName(interationvariable):
                     Error().OutError(f"Cannot create iterative varaible, '{iterationvariable}'",iter1)
                 if int(startval)>int(endval): continue
-                self.__memory[0].append([iterationvariable,"int",startval])
+                self.__memory[0].append([iterationvariable,"int",startval,"!lc"])
                 if len(line) != 5: Error().OutError("Malformed line for 'loop' command", iter1)
                 labeldata = self.findlabel(labelname)
                 if not labeldata: Error().OutError(f"Label not declared, '{labelname}'",iter1)
@@ -391,8 +391,8 @@ class Interpreter:
                     if dt == "var":
                         variabledata = self.searchvariables(each)
                         if not variabledata: Error().OutError(f"Variable not declared, '{each}'",iter1)
-                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2]])
-                    else: self.__memory[7].append(['None',dt,each])
+                        self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2], "!lc"])
+                    else: self.__memory[7].append(['None',dt,each,"!lc"])
                 if len(self.__code[fncdata[2]][2:]) != len(self.__memory[7]):
                     if len(self.__code[iter1][2:]) == 1: 
                         Error().OutError(f"User-made command, '{line[0]}', takes a single data. {len(self.__memory[7])} given.",fncdata[2])
