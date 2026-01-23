@@ -11,7 +11,7 @@ out "Hello World"
 """
 |add,subtract,multiply, and divide two or more numbers|
 decm 200; 
-decv number1, number2, number3 int; 
+decv !ig number1 number2 number3; 
 set number1, number2 10; 
 add number1,number2 number3; 
 minus number1,number2 number3; 
@@ -22,7 +22,7 @@ div number1,number2 number3;
 """
 |fibonacci series (recursive)|
 decm 300; 
-decv number1,number2,count int; 
+decv !ig number1,number2,count; 
 out "Enter two numbers: ";
 in number1,number2; 
 decf fibonacci num1,num2,count; 
@@ -43,7 +43,7 @@ call fibonacci number1,number2,count;
 """
 |fibonacci series (iterative)|
 decm 300;
-decv number1,number2,number3,count int; 
+decv !ig number1,number2,count; 
 out "Enter two numbers: ";
 in number1,number2; 
 decl l1 dne; 
@@ -59,7 +59,7 @@ loop 1,10 l1;
 """
 |Greatest amongst two numbers|
 decm 100; 
-decv num1,num2 int; 
+decv !ig num1 num2; 
 in num1,num2; 
 cmpt num1,num2 > l1; 
 cmpf num1,num2 > l2; 
