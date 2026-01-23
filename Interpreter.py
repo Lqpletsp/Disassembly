@@ -810,8 +810,22 @@ class Interpreter:
                     try: print(self.__memory[3].pop(),end="")
                     except:return False, "temp is empty"
                 else:
+                    if "@" in each: 
+                        name,index = each.split("@")
+                        if len(each.split("@")) != 2: return False, f"FORMATERROR -> Arrays can only be handled for 'out' using <array-name>@<index>. \n Cannot interpret '{each}'"
+                        variabledata = self.searchvariables(name)
+                        if not variabledata: return False, f"VARIABLEEROR -> Variable '{each.split('@')[0]}' not declared"
+                        dt = variabledata[1]
+                        try: 
+                            if dt == "int": print(str(int(float(variabledata[2][int(index)]))))
+                            elif dt == "float":print(str(float(variabledata[2][int(index)])))
+                            elif dt == "varchar" or "bool":print(variabledata[2][int(index)])
+                        except:
+                            return False, f"INDEXERROR -> '{name}' does not have '{index}' index"
+                        continue
                     variabledata = self.searchvariables(each)
                     if not variabledata: return False, f"Variable not declared, {each}"
+                    if isinstance(variabledata[2],list): print(variabledata[2],end="")
                     try:
                         if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
                         elif variabledata[1] == "float":print(str(float(variabledata[2].strip('"'))),end="")
@@ -866,10 +880,30 @@ class Interpreter:
                 variabledata = self.searchvariables(declaration[-1])
                 data = variabledata[2]
                 dt = variabledata[1]
+            elif declaration[-1] == "temp":
+                try:
+                    data = self.__memory[4].pop()
+                    try:
+                        float(data)
+                        dt = "float"
+                    except:
+                        dt = "string" 
+                except:
+                    return False, "temp is empty."
         else: data = declaration[-1]
         for iter1 in range(len(declaration)-1):
             self.__memory[9] += len(data)
             self.checkmemory()
+            if "@" in declaration[iter1]:
+                if len(declaration[iter1].split("@")) != 2: return False, f"Cannot access array with 'declaration[iiter1]' format. \n Only '<array-name>@<index> is allowed'"
+                name,_ = declaration[iter1].split("@")
+                variabledata = self.searchvariables(name)
+                if not variabledata: return False, f"Array '{name}' not declared"
+                if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"):
+                    state = self.storedata(declaration[iter1],data)
+                    if not state[0]:
+                        return False, state[1]
+                continue
             variabledata = self.searchvariables(declaration[iter1])
             if not variabledata:return False, f"Variable not declared, '{declaration[iter1]}'"
             if variabledata[0] == "temp":
@@ -879,12 +913,7 @@ class Interpreter:
                     self.__memory[3].append(str(data))
             if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"):
                 if declaration[-1] != "temp":state = self.storedata(variabledata[0],data)
-                elif declaration[-1] == "temp":
-                    try:
-                        state = self.storedata(variabledata[0],self.__memory[4].pop())
-                    except:
-                        return False, "temp is empty"
-                if not state: return False, "CRITICAL ERROR"
+                if not state[0]: return False, state[1]
             else:
                 return False, "Cannot store in different data-type variable"
         return True,""
@@ -901,12 +930,23 @@ class Interpreter:
         for each in self.__memory[0]:
             if each[0] == variablename: return each
         return []
-    def storedata(self,variablename,data) -> bool:
+    def storedata(self,variablename,data) -> tuple[bool,str]:
+        index = None
+        if "@" in variablename: 
+            variable,index = variablename.split("@")
+            variablename = variable
         for each in self.__memory[0]:
             if each[0] == variablename:
-                each[2] = str(data)
-                return True
-        return False
+                if isinstance(each[2],list):
+                    try: 
+                        each[2][int(index)] = data 
+                        return [True,""]
+                    except:return [False,f"INDEXERROR -> '{variablename}' cannot store at index '{index}'"]
+                else: 
+                    each[2] = str(data)
+                    return [True,""]
+            index = None
+        return [False,""]
     def checkmemory(self) -> None:
         if int(self.__memory[9]) > int(self.__totalmemory):Error().OutError("Memory usage exceeded the said amount.","MEMERROR")
         if int(self.__memory[9]) < 0:
