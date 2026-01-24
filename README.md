@@ -41,4 +41,4 @@ decv !i variable1 !ai array1*10; |declares integer (!i) variable, variable1 and 
 set variable1,array1@0 10; |Stores 10 in variable1 and 0th index in array1|
 out variable1,array1; |output data in variable1 and whole array1|
 ```
-**NOTE:Arrays have not been implemented well, only works for set and out commands.** 
+
