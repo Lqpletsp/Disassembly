@@ -453,6 +453,7 @@ class Interpreter:
             if variabledata[1] != "float" and variabledata[1] != "int":
                 return False,f"'{minusvalues[0]}' contains varchar/boolean data. \n Cannot opreate minus with varchar/boolean data"
             else:
+                if 
                 if float(variabledata[2]) == 0: return False, "Cannot divide by 0"
                 prioritydata = float(variabledata[2])
         elif dt == "bool" or dt == "varchar": return False, "Cannot operate minus with varchar/boolean data"
@@ -488,6 +489,7 @@ class Interpreter:
         self.__memory[9] += len(str(int(prioritydata)))
         self.checkmemory()
         state = self.storedata(storevalue,str(prioritydata))
+        if not state[0]:return False, state[1]
         return True, ""
    
     def mult(self,multvalues) -> tuple[bool,str]:
@@ -520,6 +522,7 @@ class Interpreter:
         self.__memory[9] += len(str(int(multipliedtotal)))
         self.checkmemory()
         state = self.storedata(storevalue,str(multipliedtotal))
+        if not state[0]: return state[1]
         return True, ""
     def minus(self,minusvalues) -> tuple[bool,str]:
         prioritydata = 0
@@ -566,9 +569,12 @@ class Interpreter:
         self.__memory[9] += len(str(int(prioritydata)))
         self.checkmemory
         state = self.storedata(storevalue,str(prioritydata))
+        if not state[0]:return False, state[1]
         return True, ""
     def inc(self,incvalues) -> tuple[bool,str]:
         for each in incvalues:
+            if "@" in each: 
+
             dt = self.determinedt(each)
             if dt != 'var':return False,"Can only increment int/float variables"
             if incvalues == "temp":
@@ -593,7 +599,7 @@ class Interpreter:
                     self.__memory[9] += 1
                     self.checkmemory()
                     state = self.storedata(variabledata[0],str(float(1)))
-                if not state:return False, "CRITICAL ERROR"
+                if not state[0]:return False, state[1]
         return True, ""
     def dec(self,decvalues) -> tuple[bool,str]:
         for each in decvalues:
@@ -619,7 +625,7 @@ class Interpreter:
                 self.__memory[9] += 1
                 self.checkmemory()
                 state = self.storedata(variabledata[0],str(float(-1)))
-            if not state:return False, "CRITICAL ERROR"
+            if not state[0]:return False, state[1]
         return True, ""
     def add(self,addvalues) -> tuple[bool,str]:
         addedamt = 0
@@ -651,6 +657,7 @@ class Interpreter:
         self.__memory[9] += len(str(int(addedamt)))
         self.checkmemory()
         state = self.storedata(storevalue,str(addedamt))
+        if not state[0]:return False,state[1]
         return True, ""
     def findfnc(self,fncname) -> tuple[str,str,int]:
         for each in self.__memory[1]:
@@ -677,6 +684,16 @@ class Interpreter:
                     variabledata = self.searchvariables(each)
                     if not variabledata:
                         return False, f"Variable not declared, '{each}'"
+                    if "@" in each: 
+                        if len(each.split("@")) != 2: return False,"Incorrect format for data retrieval in arrays"
+                        name,index = each.split("@")
+                        variabledata = self.searchvariables(name)
+                        if not variabledata: return False, "Array variable '{name}' not declared"
+                        try: 
+                            varstack.append([variabledata[1],variabledata[2][int(index)]])
+                        except:
+                            return False, f"INDEXERROR -> Cannot retrieve data from array '{name}' in index {index}. "
+                        continue
                     varstack.append([variabledata[1],variabledata[2]])
                     dt = variabledata[1]
                 elif dt == "int":varstack.append(["int",int(float(each))])
@@ -794,12 +811,19 @@ class Interpreter:
                     self.__memory[3].append(float(sudostore))
                 except:
                     self.__memory[3].append(str(sudostore))
-            else:
+            elif "@" in inpval[0]:
+                if len(inpval[0].split("@")) != 2: return False, f"Incorrect array data retrieval fromat. Cannot interpret '{inpval[0]}'"
+                name,index = inpval[0].split("@")
+                variabledata = self.searchvariables(name)
+                if not variabledata: return False, f"Array variable '{name}' not declared"
+                state = self.storedata(inpval[0],sudostore)
+                if not state[0]: return False,state[1]
+            else: 
                 variabledata = self.searchvariables(inpval[0])
                 if not variabledata: return False, f"Variable not declared, '{inpval[0]}'"
                 if dt == "notnum" and (variabledata[1] == "int" or variabledata[1] == "float"):return False, "Cannot store varchar data in non-varchar data-type"
                 state = self.storedata(inpval[iter1],sudostore)
-                if not state: return False, f"CRITICAL ERROR"
+                if not state[0]: return False, state[1]
         return True, ""
     def out(self,outputval) -> tuple[bool,str]:
         for each in outputval:
@@ -933,6 +957,7 @@ class Interpreter:
     def storedata(self,variablename,data) -> tuple[bool,str]:
         index = None
         if "@" in variablename: 
+            if not len(variablename.split("@")) == 2: return [False,"Incorrect format for data retrieval in arrays"]
             variable,index = variablename.split("@")
             variablename = variable
         for each in self.__memory[0]:
@@ -945,7 +970,6 @@ class Interpreter:
                 else: 
                     each[2] = str(data)
                     return [True,""]
-            index = None
         return [False,""]
     def checkmemory(self) -> None:
         if int(self.__memory[9]) > int(self.__totalmemory):Error().OutError("Memory usage exceeded the said amount.","MEMERROR")
