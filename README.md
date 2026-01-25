@@ -32,6 +32,7 @@ disasm <filename>.ds
 ```
 
 ## Example Code 
+#### Declaration (arrays,variables, ane memory), assigning, and output
 ```
 |This is a comment|
 | Each disasm file must have '.ds' extension |
@@ -41,4 +42,39 @@ decv !i variable1 !ai array1*10; |declares integer (!i) variable, variable1 and 
 set variable1,array1@0 10; |Stores 10 in variable1 and 0th index in array1|
 out variable1,array1; |output data in variable1 and whole array1|
 ```
-
+#### Fibonacci series (Iterative)
+```
+decm 200; 
+decv !i n1,n2,n3,count; 
+set n1,n2 1; 
+set count 0; 
+out n1;
+out n2; 
+decl fibo !dne;
+add n1,n2 n3; 
+out n3; 
+set n1 n2; 
+set n2 n3; 
+endl; 
+loop 0,10 i fibo;
+```
+#### Fibonacci series (recursive)
+```
+decm 200; 
+decv !i num1,num2,count;
+set num1,num2 1; 
+set count 0; 
+decf fibo n1,n2,count; 
+decv !i n3; 
+add n1,n2 n3; 
+set n1 n2; 
+set n2 n3; 
+out n3; 
+inc count; 
+cmpt count,10 <= calllabel; 
+decl calllabel !dne; 
+call fibo n1,n2,count; 
+endl; 
+endf; 
+call fibo num1,num2,count;
+```
