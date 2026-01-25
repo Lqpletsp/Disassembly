@@ -452,8 +452,7 @@ class Interpreter:
             if not variabledata: return False, f"Variable not declared, '{minusvalues[0]}'"
             if variabledata[1] != "float" and variabledata[1] != "int":
                 return False,f"'{minusvalues[0]}' contains varchar/boolean data. \n Cannot opreate minus with varchar/boolean data"
-            else:
-                if 
+            else: 
                 if float(variabledata[2]) == 0: return False, "Cannot divide by 0"
                 prioritydata = float(variabledata[2])
         elif dt == "bool" or dt == "varchar": return False, "Cannot operate minus with varchar/boolean data"
