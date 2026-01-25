@@ -247,7 +247,7 @@ class Interpreter:
                 for iter2 in range(len(fncdeclaration[2:])):
                     self.__memory[9] += len(str(self.__memory[7][iter2][2]))
                     self.checkmemory()
-                    self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2]])
+                    self.__memory[0].append([fncdeclaration[2:][iter2],self.__memory[7][iter2][1],self.__memory[7][iter2][2],"!lc"])
                 self.__memory[1] = [fncdata]
                 self.__memory[8][0] = self.__memory[8][1]
                 self.__memory[8][1] = fncdata[1]
