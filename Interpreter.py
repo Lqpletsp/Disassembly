@@ -266,7 +266,7 @@ class Interpreter:
             elif line[0] == "loop":
                 try: labelname,startval,endval,iterationvariable = line[-1],line[1],line[2],line[3]
                 except:Error().OutError("Malformed line for 'loop' command", self.__actualines, self.__currentfile)
-                if not self.verifyName(interationvariable):
+                if not self.verifyName(iterationvariable):
                     Error().OutError(f"Cannot create iterative varaible, '{iterationvariable}'", self.__actualines, self.__currentfile)
                 if int(startval)>int(endval): continue
                 self.__memory[0].append([iterationvariable,"int",startval,"!lc"])
@@ -452,7 +452,7 @@ class Interpreter:
             if not variabledata: return False, f"Variable not declared, '{minusvalues[0]}'"
             if variabledata[1] != "float" and variabledata[1] != "int":
                 return False,f"'{minusvalues[0]}' contains varchar/boolean data. \n Cannot opreate minus with varchar/boolean data"
-            else: 
+            else:
                 if float(variabledata[2]) == 0: return False, "Cannot divide by 0"
                 prioritydata = float(variabledata[2])
         elif dt == "bool" or dt == "varchar": return False, "Cannot operate minus with varchar/boolean data"
@@ -572,8 +572,6 @@ class Interpreter:
         return True, ""
     def inc(self,incvalues) -> tuple[bool,str]:
         for each in incvalues:
-            if "@" in each: 
-
             dt = self.determinedt(each)
             if dt != 'var':return False,"Can only increment int/float variables"
             if incvalues == "temp":
@@ -971,6 +969,6 @@ class Interpreter:
                     return [True,""]
         return [False,""]
     def checkmemory(self) -> None:
-        if int(self.__memory[9]) > int(self.__totalmemory):Error().OutError("Memory usage exceeded the said amount.","MEMERROR")
+        if int(self.__memory[9]) > int(self.__totalmemory):Error().OutError("MEMERROR -> Memory usage exceeded the said amount.",self.__actualines,self.__currentfile)
         if int(self.__memory[9]) < 0:
-            Error().OutError("Memory usage less than 0 \n Current memory : {self.__memory[9]} spaces","MEMCRTICERROR")
+            Error().OutError("CRASH: Memory usage less than 0 \n Current memory : {self.__memory[9]} spaces",self.__actualines,self.__currentfile)
