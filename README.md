@@ -14,7 +14,9 @@ printf '#!/usr/bin/env bash\npython3 /path/to/project/main.py "$@"\n' | sudo tee
 sudo chmod +x /usr/local/bin/disasm
 
 #Run
-disasm <filename>.ds
+touch disasmfiletest.ds
+echo 'out "Hello"' >> disasmfiletest.ds
+disasm disasmfiletest.ds
 ```
 
 ## Installation for Windows 
@@ -28,7 +30,9 @@ python "%~dp0\main.py" %*
 #Make sure Python 3 is installed and that the folder is in PATH.
 
 #Run
-disasm <filename>.ds
+touch disasmfiletest.ds
+echo 'out "Hello"' >> disasmfiletest.ds
+disasm disasmfiletest.ds
 ```
 
 ## Example Code 
@@ -42,6 +46,7 @@ decv !i variable1 !ai array1*10; |declares integer (!i) variable, variable1 and 
 set variable1,array1@0 10; |Stores 10 in variable1 and 0th index in array1|
 out variable1,array1; |output data in variable1 and whole array1|
 ```
+
 #### Fibonacci series (Iterative)
 ```
 decm 200; 
