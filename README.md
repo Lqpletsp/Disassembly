@@ -29,10 +29,7 @@ python "%~dp0\main.py" %*
 
 #Make sure Python 3 is installed and that the folder is in PATH.
 
-#Run
-touch disasmfiletest.ds
-echo 'out "Hello"' >> disasmfiletest.ds
-disasm disasmfiletest.ds
+#To run, create a file with extension ".ds" and run "disasm <filename>.ds" in cmd/powershell (with apporpriate file path)
 ```
 
 ## Example Code 
