@@ -78,3 +78,4 @@ endl;
 endf; 
 call fibo num1,num2,count;
 ```
+**The garbage collector (clearing memory after function call) is NOT implemented so even if high spaces of memory is used, it may cause 'MEMERROR'**
