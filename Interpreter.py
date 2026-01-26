@@ -259,6 +259,12 @@ class Interpreter:
                 self.__memory[8][1] = fncdata[0]
                 if self.__memory[8][1] != 23455432:
                     self.__infunction = True
+                for each in self.__memory[0]:
+                    if isinstance(each[2],list):
+                        for elements in each: 
+                            if elements: self.__memory[9] -= len(str(elements))
+                    else: 
+                        self.__memory[9] -= len(str(each[2]))
                 self.__memory[0] = self.__memory[4].pop()
                 self.__memory[1] = self.__memory[5].pop()
                 self.__recursioncount -= 1
