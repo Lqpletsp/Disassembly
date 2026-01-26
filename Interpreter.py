@@ -788,7 +788,7 @@ class Interpreter:
         elif cmd == "cmpf" and logicstack == [1]: return True, "0"
         else: return False, "CRITICAL ERROR"
     def verifyName(self,name) -> bool:
-        validcharacters = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+        validcharacters = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM_"
         # Allow variables like 'a1','var1'. But do not allow '1a'
         for iter1 in range(len(name)-1):
             if name[iter1] not in validcharacters: return False
@@ -811,6 +811,17 @@ class Interpreter:
             elif "@" in inpval[0]:
                 if len(inpval[0].split("@")) != 2: return False, f"Incorrect array data retrieval fromat. Cannot interpret '{inpval[0]}'"
                 name,index = inpval[0].split("@")
+                dt = self.determinedt(index)
+                if dt == "var":
+                    variabledata = self.searchvariables(index)
+                    if not variabledata: return False, f"Variable '{index}' is not declared"
+                    elif variabledata[0] != 'int' and variabledata[0] != 'float':
+                        return False, f"Variable '{index}' contains {variabledata[1]} data. Data retrieval can only happen with int/float data"
+                    else: 
+                        if not isinstance(variabledata[2],list): 
+                            index = variabledata[2]
+                        else: 
+                            return False, f"Variable '{variabledata[0]}' contains another array. Cannot use arrays for data retrieval"
                 variabledata = self.searchvariables(name)
                 if not variabledata: return False, f"Array variable '{name}' not declared"
                 state = self.storedata(inpval[0],sudostore)
@@ -832,11 +843,21 @@ class Interpreter:
                     except:return False, "temp is empty"
                 else:
                     if "@" in each: 
-                        name,index = each.split("@")
                         if len(each.split("@")) != 2: return False, f"FORMATERROR -> Arrays can only be handled for 'out' using <array-name>@<index>. \n Cannot interpret '{each}'"
+                        name,index = each.split("@")
                         variabledata = self.searchvariables(name)
-                        if not variabledata: return False, f"VARIABLEEROR -> Variable '{each.split('@')[0]}' not declared"
+                        if not variabledata: return False, f"Variable '{each.split('@')[0]}' not declared"
                         dt = variabledata[1]
+                        dtindex = self.determinedt(index)
+                        if dtindex == "var":
+                            variabledata_index = self.searchvariables(index)
+                            if not variabledata_index: return False, f"Variable '{index}' does not exist"
+                            elif variabledata_index[1] != "int" and variabledata_index[1] != "float":
+                                return False, f"Variable '{index}' holds {variabledata_index[1]} value. Only int or float data types are allowed for data retrieval in arrays"
+                            else: 
+                                if not isinstance(variabledata_index[2],list):
+                                    index = variabledata_index[2]
+                                else: return False, f"Array variable '{index}' cannot be used for data retrieval"
                         try: 
                             if dt == "int": print(str(int(float(variabledata[2][int(index)]))))
                             elif dt == "float":print(str(float(variabledata[2][int(index)])))
@@ -872,6 +893,7 @@ class Interpreter:
                     elif each == "s":dt = "varchar"
                     elif each == "b":dt = "bool"
                     elif each == "a":arr = True
+                    elif each == "v":arr = False
                     else:
                         Error().OutError(f"Invalid mid-line-command set given -> '{declaration[iter1]}' \n '{each}' does not exist for variable declaration")
             else:
@@ -898,9 +920,33 @@ class Interpreter:
         if not dt: return False, "Inappropriate representation of string data"
         elif dt == "var":
             if declaration[-1] != "temp":
-                variabledata = self.searchvariables(declaration[-1])
-                data = variabledata[2]
-                dt = variabledata[1]
+                if "@" in declaration[-1]:
+                    if len(declaration[-1].split("@")) != 2: return False, f"Incorrect data access format for arrays. Cannot do '{declaration[-1]}'"
+                    name,index = declaration[-1].split("@")
+                    dt = self.determinedt(index)
+                    if dt == "var": 
+                        variabledata = self.searchvariables(index)
+                        if not variabledata: return False, f"Variable '{index}' does not exist"
+                        elif variabledata[1] == "int" or variabledata[1] == "float":
+                            if not isinstance(variabledata[2],list): index = int(variabledata[2])
+                            elif isinstance(variabledata[2],list): return False, f"Cannot use array as an index. \n '{variabledata[0]} is an array variable'"
+                        else: 
+                            return False, f"Cannot use varchar/bool data to index in array '{declaration[-1]}'"
+                    elif not dt and dt != "varchar" and dt != "bool":
+                        return False, f"Invalid data type variable given for data retrieval in array '{name}'"
+                    variabledata = self.searchvariables(name)
+                    if not variabledata:  False, f"Array variable '{name}' does not exist"
+                    if isinstance(variabledata[2],list):
+                        try:
+                            data = variabledata[2][int(index)]
+                            dt = variabledata[1]
+                        except:return False, f"INDEXERROR -> Array '{name}' does not have '{index}' index"
+                    else: 
+                        return False, f"'{variabledata[0]}' is not an array. Cannot use '@' for '{variabledata[1]}' data type"
+                else: 
+                    variabledata = self.searchvariables(declaration[-1])
+                    data = variabledata[2]
+                    dt = variabledata[1]
             elif declaration[-1] == "temp":
                 try:
                     data = self.__memory[4].pop()
@@ -960,7 +1006,15 @@ class Interpreter:
         for each in self.__memory[0]:
             if each[0] == variablename:
                 if isinstance(each[2],list):
-                    try: 
+                    try:
+                        dt = self.determinedt(index)
+                        if dt == "var":
+                            variabledata = self.searchvariables(index)
+                            if (variabledata[1] == "int" or variabledata[1]) and not isinstance(variabledata[2],list) == "float":index = int(variabledata[2])
+                            elif variabledata[1] == "varchar" or variabledata[1] == "bool":
+                                return [False,"Cannot use varchar/bool data for data retrieval in array '{variablename}'"]
+                            elif isinstance(variabledata[2],list):
+                                return [False, "Cannot assign an array for indexing"]
                         each[2][int(index)] = data 
                         return [True,""]
                     except:return [False,f"INDEXERROR -> '{variablename}' cannot store at index '{index}'"]
