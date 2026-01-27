@@ -199,7 +199,9 @@ class Interpreter:
             if ''.join(line) and ''.join(line)[:5] == "F!le:":
                 self.__currentfile = ''.join(line)[5:]
                 continue
-            elif line[0] == "decv" or line[0] == "mkcmd" or line[0] == "decm": continue
+            elif line[0] == "decv" or line[0] == "mkcmd" or line[0] == "decm": 
+                self.__elsestatement = ""
+                continue
             elif line[0] == "endf" and len(line) == 1 and not self.__inlabel:
                 if not self.__infunction and self.__functioncall: Error().OutError("No function found to end", self.__actualines, self.__currentfile)
                 if self.__infunction and not self.__functioncall:self.__infunction = False
@@ -219,7 +221,9 @@ class Interpreter:
                     self.__inlabel = True
                     self.__labelcall = False
                 else: return False, "Invalid way of declaring a label. Mid-line commands as 'dne' or 'e' can only be used. "
-            if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):continue
+            if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):
+                self.__elsestatement = ""
+                continue
             if line[0] == "call":
                 self.__recursioncount += 1
                 if self.__recursioncount >= 800:
