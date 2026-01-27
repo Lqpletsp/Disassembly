@@ -27,6 +27,7 @@ class Interpreter:
         self.__currentfile:str = "!/main"
         self.__newestfileptr:int = 0
         self.__actualines:int = 0
+        self.__elsestatement:str = ""
         """MEMORY FORMAT:
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
             [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>],[<User-made commands>]
@@ -290,7 +291,7 @@ class Interpreter:
                     if not variabledata: Error().OutError("Variable not declared, '{endval}'", self.__actualines, self.__currentfile)
                     if (variabledata[1] != "int" or variabledata[2] != "float"): Error().OutError("End value for a loop cannot be varchar/boolean data.", self.__actualines, self.__currentfile)
                     if variabledata[2] == "empt": Error().OutError("Cannot use empt value for end", self.__actualines, self.__currentfile)
-                    else: endval = variabledata[2]
+                    else: endval = variabledata[20]
                 if int(endval) > 990: sys.setrecursionlimit(endval + 1)
                 for loopcmd in range(int(startval),int(endval)):
                     self.__inlabel = True
@@ -323,7 +324,7 @@ class Interpreter:
                     self.__labelcall, self.__inlabel = True,True
                     self.__memory[8][2] = line[1]
                     self.__memory[10].append(line[1])
-                    self.Interpret(int(labeldata[2])+1)
+                    self.thirdpass(labeldata[2]+1)
                     try: self.__memory[8][2] = self.__memory[10].pop()
                     except:self.__memory[8][2] = None
                     if not self.__memory[10]: self.__inlabel,self.__labelcall = False, False
@@ -332,6 +333,7 @@ class Interpreter:
                 else:
                     labelname = line[-1]
                     returnstate,returnval = self.logicalstatements(line[:len(line)-1])
+                    self.__elsestatement = "Passed"
                     if not returnstate:
                         Error().OutError(returnval, self.__actualines, self.__currentfile)
                     elif returnval == "1":
@@ -346,7 +348,28 @@ class Interpreter:
                         except:self.__memory[8][2] = None
                         if not self.__memory[10]: self.__inlabel,self.__labelcall = False,False
                         continue
-                    elif returnval == "0":continue
+                    elif returnval == "0":
+                        self.__elsestatement = "Failed"
+                        continue
+
+            elif line[0] == "else":
+                if self.__elsestatement == "Failed":
+                    labeldata = self.findlabel(line[1])
+                    if not labeldata:
+                        Error().OutError(f"Label not declared, '{line[1]}'", self.__actualines, self.__currentfile)
+                    self.__labelcall, self.__inlabel = True,True
+                    self.__memory[8][2] = line[1]
+                    self.__memory[10].append(line[1])
+                    self.thirdpass(labeldata[2]+1)
+                    try: self.__memory[8][2] = self.__memory[10].pop()
+                    except:self.__memory[8][2] = None
+                    if not self.__memory[10]: self.__inlabel,self.__labelcall = False, False
+                    self.__elsestatement = ""
+                    continue
+                elif self.__elsestatement == "Passed": 
+                    self.__elsestatement = ""
+                    continue
+                else:Error().OutError("'else' command is only used as a pair with cmpt or cmpf. Cannot use 'else' as a stand alone",self.__actualines,self.__currentfile)
             elif line[0] == "add" and len(line) > 3:
                 returnval,returnstate = self.add(line[1:])
                 if not returnval:Error().OutError(returnstate, self.__actualines, self.__currentfile)
@@ -415,6 +438,7 @@ class Interpreter:
                 self.__memory[1] = self.__memory[5].pop()
                 self.__recursioncount -= 1
                 continue
+            if self.__elsestatement: self.__elsestatement = ""
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
             if each[0] == cmd:
