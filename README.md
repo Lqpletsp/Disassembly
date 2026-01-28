@@ -9,9 +9,10 @@
 git clone https://github.com/Lqpletsp/Disassembly.git
 cd Disassembly
 
-#Make executable
-printf '#!/usr/bin/env bash\npython3 /path/to/project/main.py "$@"\n' | sudo tee /usr/local/bin/disasm > /dev/null
-sudo chmod +x /usr/local/bin/disasm
+ptn=$(which python3)
+cwdd=$(pwd)
+printf "#bash\n ${ptn} ${cwdd}/main.py \"$@\"\n" | tee ~/.local/bin/disasm > /dev/null
+chmod +x ~/.local/bin/disasm
 
 #Run
 touch disasmfiletest.ds
