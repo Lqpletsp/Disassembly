@@ -188,8 +188,9 @@ class Interpreter:
         for iter1 in range(startpointer,len(self.__code)):
             if self.__currentfile == "!/main" and self.__broughtlinescount > 0:
                 self.__actualines = iter1 - self.__broughtlinescount # So that the attached line do not contribute to line-count
+                if self.__actualines < 0: self.__actualines *= -1 
             elif self.__currentfile != "!/main" and self.__broughtlinescount > 0:
-                self.__actualines = self.__broughtlinescount - self.__newestfileptr
+                self.__actualines = self.__broughtlinescount - self.__newestfileptr 
             elif self.__currentfile == "!/main" and self.__broughtlinescount == 0:
                 self.__actualines = iter1
             try:self.__code[iter1]
@@ -416,6 +417,7 @@ class Interpreter:
                         if not variabledata: Error().OutError(f"Variable not declared, '{each}'", self.__actualines, self.__currentfile)
                         self.__memory[7].append([variabledata[0],variabledata[1],variabledata[2], "!lc"])
                     else: self.__memory[7].append(['None',dt,each,"!lc"])
+                if "@" in line[0]: self.__currentfile = line[0].split("@")[0]
                 if len(self.__code[fncdata[2]][2:]) != len(self.__memory[7]):
                     if len(self.__code[iter1][2:]) == 1:
                         Error().OutError(f"User-made command, '{line[0]}', takes a single data. {len(self.__memory[7])} given.",fncdata[2], self.__currentfile)
@@ -900,7 +902,7 @@ class Interpreter:
                             return False, f"INDEXERROR -> '{name}' does not have '{index}' index"
                         continue
                     variabledata = self.searchvariables(each)
-                    if not variabledata: return False, f"Variable not declared, {each}"
+                    if not variabledata: return False, f"Variable not declared '{each}'"
                     if isinstance(variabledata[2],list): print(variabledata[2],end="")
                     try:
                         if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
@@ -1005,13 +1007,14 @@ class Interpreter:
                     if not state[0]:
                         return False, state[1]
                 continue
-            variabledata = self.searchvariables(declaration[iter1])
-            if not variabledata:return False, f"Variable not declared, '{declaration[iter1]}'"
-            if variabledata[0] == "temp":
+            if declaration[iter1] == "temp":
                 try:
-                    self.__memory[3].append(float(data))
+                    self.__memory[3].append(float(declaration[iter1]))
                 except:
-                    self.__memory[3].append(str(data))
+                    self.__memory[3].append(declaration[iter1])
+                continue
+            variabledata = self.searchvariables(declaration[iter1])
+            if not variabledata:return False, f"Variable not declared '{declaration[iter1]}'"
             if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"):
                 if declaration[-1] != "temp":state = self.storedata(variabledata[0],data)
                 if not state[0]: return False, state[1]
