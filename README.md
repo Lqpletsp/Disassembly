@@ -81,4 +81,6 @@ endl;
 endf; 
 call fibo num1,num2,count;
 ```
+> [!NOTE]
+> The else command has a bug where if a condition passes in cmpt/cmpf then it resets the 'elsestatement' attribute such that the else statement now becomes a stand alone command
 
