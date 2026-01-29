@@ -34,7 +34,7 @@ python "%~dp0\main.py" %*
 ```
 
 ## Example Code 
-#### Declaration (arrays,variables, ane memory), assigning, and output
+#### Declaration (arrays,variables, and memory), assigning, and output
 ```
 |This is a comment|
 | Each disasm file must have '.ds' extension |
