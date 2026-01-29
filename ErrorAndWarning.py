@@ -4,7 +4,7 @@ class Errors:
         try:
             if int(ErrorPointer) < 0 and currentfile == "!/main": 
                 print("CRASH:Negative line-pointer for '!/main' metadata.")
-                print("Try changing the file-name(s) if 'bring' command is used")
+                print("High probability of an edge case.")
                 exit()
             elif int(ErrorPointer) < 0 and currentfile != "!/main":
                 print("CRASH:Negative line-pointer for non '!/main' metadata.")
