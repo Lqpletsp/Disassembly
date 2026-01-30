@@ -1006,11 +1006,11 @@ class Interpreter:
                     if not state[0]:
                         return False, state[1]
                 continue
-            if declaration[iter1] == "temp":
+            elif declaration[iter1] == "temp":
                 try:
-                    self.__memory[3].append(float(declaration[iter1]))
+                    self.__memory[3].append(float(data))
                 except:
-                    self.__memory[3].append(declaration[iter1])
+                    self.__memory[3].append(data)
                 continue
             variabledata = self.searchvariables(declaration[iter1])
             if not variabledata:return False, f"Variable not declared '{declaration[iter1]}'"
