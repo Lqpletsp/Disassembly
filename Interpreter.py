@@ -899,9 +899,15 @@ class Interpreter:
                                     index = variabledata_index[2]
                                 else: return False, f"Array variable '{index}' cannot be used for data retrieval"
                         try: 
-                            if dt == "int": print(str(int(float(variabledata[2][int(index)]))))
-                            elif dt == "float":print(str(float(variabledata[2][int(index)])))
-                            elif dt == "varchar" or "bool":print(variabledata[2][int(index)])
+                            if dt == "int":
+                                if not variabledata[2][int(index)]: print("empt")
+                                else:print(str(int(float(variabledata[2][int(index)]))))
+                            elif dt == "float":
+                                if not variabledata[2][int(index)]: print("empt")
+                                else:print(str(float(variabledata[2][int(index)])))
+                            elif dt == "varchar" or dt == "bool": 
+                                if not variabledata[2][int(index)]: print("empt")
+                                else:print(variabledata[2][int(index)])
                         except:
                             return False, f"INDEXERROR -> '{name}' does not have '{index}' index"
                         continue
