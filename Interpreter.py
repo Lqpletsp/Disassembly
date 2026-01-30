@@ -1,4 +1,3 @@
-
 import sys
 import os
 from ErrorAndWarning import Errors as Error
@@ -457,7 +456,7 @@ class Interpreter:
             if tokenizedline[0] == "mkcmd" and len(tokenizedline) == 3:
                 fncname = tokenizedline[2]
                 state = self.fncfromname(fncname,Codelines,filename)
-                if not state: Error().OutError(f"'{Codelines[iter1][1]}' does not reference any function. Cannot create the command",f"{filename}@{iter1}")
+                if not state: Error().OutError(f"'{Codelines[iter1][1]}' does not reference any function. Cannot create the command",f"{filename}@{iter1}",None)
                 self.__broughtlines.extend([[f"F!le:{filename}"] + Codelines[state[0]:state[1]+1] + [tokenizedline]])# This will attach the mkcmd line with the module
             elif tokenizedline[0] == "bring" and len(tokenizedline) > 2:self.__broughtlines.append(tokenizedline)
     def fncfromname(self,fncname,Codelines,filename) -> tuple[int,int]:
@@ -469,12 +468,15 @@ class Interpreter:
             elif Codelines[iter1][0] == "decf":
                 fncstack.append(Codelines[iter1][1])
             elif Codelines[iter1][0] == "endf":
-                topfncname = fncstack.pop()
+                try:
+                    topfncname = fncstack.pop()
+                except: 
+                    Error().OutError(f"Unknown function ended but not declared",f"{filename}@{iter1}",None)
                 if topfncname == fncname:
                     end = iter1
                     return [start,end]
-        if fncstack and len(fncstack) == 1: Error().OutError(f"'{fncname}' module used but not ended.",f"{filename}@{start}")
-        elif len(fncstack) > 1: Error().OutError(f"'{fncname}' module has other modules that are used but not ended",f"{filename}@{start}")
+        if fncstack and len(fncstack) == 1: Error().OutError(f"'{fncname}' module used but not ended.",f"{filename}@{start}",None)
+        elif len(fncstack) > 1: Error().OutError(f"'{fncname}' module has other modules that are used but not ended",f"{filename}@{start}",None)
         return []
    
     def div(self,divvalues) -> tuple[bool,str]:
