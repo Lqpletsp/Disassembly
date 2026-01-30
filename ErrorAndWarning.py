@@ -1,18 +1,20 @@
-import sys
 class Errors:
     def OutError(self,ErrorType,ErrorPointer,currentfile) -> None:
         try:
             if int(ErrorPointer) < 0 and currentfile == "!/main": 
                 print("CRASH:Negative line-pointer for '!/main' metadata.")
-                print("High probability of an edge case.")
-                sys.exit(1)
+                print("Try changing the file-name(s) if 'bring' command is used")
+                exit()
             elif int(ErrorPointer) < 0 and currentfile != "!/main":
                 print("CRASH:Negative line-pointer for non '!/main' metadata.")
                 print("High probability of an edge case.")
-                sys.exit(1)
+                exit()
         except:pass
-        print(f"ERROR[{currentfile}@{ErrorPointer}] : {ErrorType}")   
-        sys.exit(1)
+        if not currentfile:
+            print(f"ERROR[{ErrorPointer}] : {ErrorType}") 
+        else:
+            print(f"ERROR[{currentfile}@{ErrorPointer}] : {ErrorType}")   
+        exit()
 
 
 class Warnings:
