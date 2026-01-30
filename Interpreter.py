@@ -30,7 +30,7 @@ class Interpreter:
         self.__elsestatement:str = ""
         """MEMORY FORMAT:
             [[<variable list>],[<function stack>],[<functionstack reference>],[<temp>],[tempstore variable list],[tempstore fncstack],
-            [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>],[<User-made commands>]
+            [<paramters>],[<call arguments>],[<Top function>,<current function>,<current label>],<memory used>,[<label stack>],[<User made commands>]
             NOTE: MEMORY USED IN THE PROGRAM IS JUST A SIMULATION. IT ONLY STORES DATA THAT IS BEING USED IN THE CODE WRITTEN IN Disassembly
             AND NOT IN THE CODE THAT IS USED TO MAKE Disassembly
            """
@@ -358,7 +358,7 @@ class Interpreter:
                         continue
 
             elif line[0] == "else":
-                if self.__elsestatement == "Failed":
+                if self.__elsestatement == "Failed" or not self.__elsestatement:
                     labeldata = self.findlabel(line[1])
                     if not labeldata:
                         Error().OutError(f"Label not declared, '{line[1]}'", self.__actualines, self.__currentfile)
@@ -374,7 +374,6 @@ class Interpreter:
                 elif self.__elsestatement == "Passed": 
                     self.__elsestatement = ""
                     continue
-                else:Error().OutError("'else' command is only used as a pair with cmpt or cmpf. Cannot use 'else' as a stand alone",self.__actualines,self.__currentfile)
             elif line[0] == "add" and len(line) > 3:
                 returnval,returnstate = self.add(line[1:])
                 if not returnval:Error().OutError(returnstate, self.__actualines, self.__currentfile)
