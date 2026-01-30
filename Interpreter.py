@@ -391,6 +391,7 @@ class Interpreter:
             elif line[0] == "div" and len(line) > 3:
                 returnval,returnstate = self.div(line[1:])
                 if not returnval: Error().OutError(returnstate, self.__actualines, self.__currentfile)
+                if not returnval: Error().OutError(returnstate,self.__actualines,self.__currentfile)
             elif line[0] != "endf" and line[0] != "endl" and line[0] != "": #This is to make sure that other user made commands work
                 cmddata = self.searchcmd(line[0])
                 if not cmddata:
@@ -443,6 +444,8 @@ class Interpreter:
                 self.__recursioncount -= 1
                 continue
             if self.__elsestatement: self.__elsestatement = ""
+
+
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
             if each[0] == cmd:
@@ -1003,10 +1006,12 @@ class Interpreter:
                 name,_ = declaration[iter1].split("@")
                 variabledata = self.searchvariables(name)
                 if not variabledata: return False, f"Array '{name}' not declared"
-                if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"):
+                if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float") or variabledata == "varchar":
                     state = self.storedata(declaration[iter1],data)
                     if not state[0]:
                         return False, state[1]
+                else: 
+                    return False, f"'{variabledata[0]}' stores {variabledata[1]} data. \n Cannot store a {dt} data."
                 continue
             elif declaration[iter1] == "temp":
                 try:
@@ -1016,7 +1021,7 @@ class Interpreter:
                 continue
             variabledata = self.searchvariables(declaration[iter1])
             if not variabledata:return False, f"Variable not declared '{declaration[iter1]}'"
-            if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float"):
+            if (variabledata[1] == dt) or (variabledata[1] == "float" and dt == "int") or (variabledata[1] == "int" and dt == "float") or variabledata[1] == "varchar":
                 if declaration[-1] != "temp":state = self.storedata(variabledata[0],data)
                 if not state[0]: return False, state[1]
             else:
