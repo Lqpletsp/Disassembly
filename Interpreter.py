@@ -391,6 +391,8 @@ class Interpreter:
             elif line[0] == "div" and len(line) > 3:
                 returnval,returnstate = self.div(line[1:])
                 if not returnval: Error().OutError(returnstate, self.__actualines, self.__currentfile)
+            elif line[0] == "trns" and len(line)>=3: 
+                returnval,returnstate = self.trns(line[1:])
                 if not returnval: Error().OutError(returnstate,self.__actualines,self.__currentfile)
             elif line[0] != "endf" and line[0] != "endl" and line[0] != "": #This is to make sure that other user made commands work
                 cmddata = self.searchcmd(line[0])
@@ -445,6 +447,67 @@ class Interpreter:
                 continue
             if self.__elsestatement: self.__elsestatement = ""
 
+    def trns(self,line) -> tuple[str,int]:
+        array = False
+        dt = None
+        data = None
+        for each in line: 
+            if each[0] == "!":
+                for letter in each[1:]:
+                    if letter == "a":array = True 
+                    elif letter == "v":array = False 
+                    elif letter == "f":dt = "float"
+                    elif letter == "b":dt = "bool"
+                    elif letter == "s":dt = "varchar"
+                    elif letter == "i":dt = "int"
+                    else: return False, f"'{letter}' is an invalid mid line command for trns command"
+                continue
+            variabledata = self.searchvariables(each)
+            if not variabledata: return False, f"Variable not declared '{each}'"
+            self.removevariable(variabledata[0])
+            if array and not dt: 
+                if not isinstance(variabledata[2],list):data = [each for each in str(variabledata[2])] 
+                else: continue
+            elif dt and not array:
+                if dt == "float" or dt == "int":
+                    if variabledata[1] == "varchar" or variabledata[1] == "bool":
+                        if variabledata[2].isdigit(): data = variabledata[2]
+                        else: return False, f"'{variabledata[0]}' is a varchar/bool data and cannot be transformed to float data type"
+                    elif isinstance(variabledata[2],list):
+                        for each in variabledata[2]: data += float(each)
+                    else: data = str(float(variabledata[2]))
+                elif dt == "varchar":
+                    if isinstance(variabledata[2],list):
+                        for each in variabledata[2]: data += each
+                    else: data = variabledata[2]
+                elif dt == "bool":
+                    if len(variabledata[2]) == 1 and (variabledata[2] == "T" or variabledata[2] == "F"):
+                        if not isinstance(variabledata[2],list):data == variabledata[2]
+                        else: return False, f"'{variabledata[0]}' contains an array and cannot be converted to boolean"
+                    else: 
+                        return False, f"'{variabledata[0]}' cannot be converted to boolean as it does not contain either 'T' or 'F' values"
+            elif dt and array:
+                if dt == "float":
+                    try: 
+                        data = [str(float(each)) for each in variabledata[2]]
+                    except:return False, f"'{variabledata[0]}' contains data that cannot be converted to float"
+                elif dt == "int":
+                    try: 
+                        data = [str(int(each)) for each in variabledata[2]]
+                    except:return False, f"'{variabledata[0]}' contains data that cannot be converted to int"
+                else:
+                    data = [str(each) for each in variabledata[2] if each != '"']
+            elif not dt: 
+                return False, f"trns command requires a data type for conversion. \n Did not find any conversion data type"
+            self.__memory[0].append([variabledata[0],dt,data])
+            return True,""
+                
+
+    def removevariable(self,name): 
+        for iter1 in range(len(self.__memory[0])):
+            if self.__memory[0][iter1][0] == name: 
+                self.__memory[0][iter1] = None
+                return 
 
     def searchcmd(self,cmd) -> tuple[str,int]:
         for each in self.__memory[11]:
@@ -489,7 +552,7 @@ class Interpreter:
         if not dt: return False,"Cannot operate minus with invalid varchar/boolean data"
         elif dt == "var":
             variabledata = self.searchvariables(divvalues[0])
-            if not variabledata: return False, f"Variable not declared, '{minusvalues[0]}'"
+            if not variabledata: return False, f"Variable not declared, '{divvalues[0]}'"
             if variabledata[1] != "float" and variabledata[1] != "int":
                 return False,f"'{minusvalues[0]}' contains varchar/boolean data. \n Cannot opreate minus with varchar/boolean data"
             else:
@@ -913,12 +976,14 @@ class Interpreter:
                         continue
                     variabledata = self.searchvariables(each)
                     if not variabledata: return False, f"Variable not declared '{each}'"
-                    if isinstance(variabledata[2],list): print(variabledata[2],end="")
+                    if isinstance(variabledata[2],list):
+                       print(variabledata[2],end="")
                     try:
                         if variabledata[1] == "int":print(str(int(float(variabledata[2].strip('"')))),end="")
                         elif variabledata[1] == "float":print(str(float(variabledata[2].strip('"'))),end="")
-                    except:print("empt",end="")
-                    if variabledata[1] == "varchar": print(str(variabledata[2].strip('"')),end="")
+                    except: 
+                        if variabledata[1] != "varchar" and variabledata[1] != "bool":print("empt",end="")
+                        elif variabledata[1] == "varchar": print(str(variabledata[2].strip('"')),end="")
             elif dt == "int":print(str(int(float(each.strip('"')))),end="")
             elif dt == "varchar":print(str(each.strip('"')),end="")
         print()
@@ -1044,7 +1109,7 @@ class Interpreter:
         return None
     def searchvariables(self,variablename) -> tuple[str,str,str|int|float]:
         for each in self.__memory[0]:
-            if each[0] == variablename: return each
+            if each and each[0] == variablename: return each
         return []
     def storedata(self,variablename,data) -> tuple[bool,str]:
         index = None
