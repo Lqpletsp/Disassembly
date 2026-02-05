@@ -157,7 +157,7 @@ class Interpreter:
                 try:self.__memory[8][0] = self.__memory[2][-2]
                 except:self.__memory[8][0] = 23455432
             elif tokenizedline[0] == "decl" and (len(tokenizedline) < 2 or len(tokenizedline)>3):Error().OutError("Malformed line for 'decl' command", self.__actualines, self.__currentfile)
-            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "!dne" or tokenizedline[2] == "!e"):
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] == "!d" or tokenizedline[2] == "!e"):
                 if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'", self.__actualines, self.__currentfile)
                 self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
                 self.__memory[8][2] = tokenizedline[1]
@@ -165,8 +165,8 @@ class Interpreter:
                 if not self.verifyName(tokenizedline[1]): Error().OutError(f"Invalid name for label. Cannot create '{tokenizedline[1]}'", self.__actualines, self.__currentfile)
                 self.__memory[1].append([self.__memory[8][0],tokenizedline[1],iter1,"lab"]) #Label format: [<Top funciton>,<Label name>,<Label pointer>,"lab"]
                 self.__memory[10].append(tokenizedline[1])
-            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] != "!dne" and tokenizedline[2] != "!e"):
-                Error().OutError("Invalid mid-line-commands for 'decl' command. Only '!dne' or '!e' is allowed", self.__actualines, self.__currentfile)
+            elif tokenizedline[0] == "decl" and len(tokenizedline) == 3 and (tokenizedline[2] != "!d" and tokenizedline[2] != "!e"):
+                Error().OutError("Invalid mid-line-commands for 'decl' command. Only '!d' or '!e' is allowed", self.__actualines, self.__currentfile)
             elif tokenizedline[0] == "endl" and len(tokenizedline) == 1:
                 if self.__memory[8][2] == None: Error().OutError("No label declared to end", self.__actualines, self.__currentfile)
                 try:self.__memory[10].pop()
@@ -217,10 +217,10 @@ class Interpreter:
                     self.__labelcall = False
                     self.__inlabel = False
                     continue
-                elif len(line) == 3 and line[2] == "!dne":
+                elif len(line) == 3 and line[2] == "!d":
                     self.__inlabel = True
                     self.__labelcall = False
-                else: return False, "Invalid way of declaring a label. Mid-line commands as 'dne' or 'e' can only be used. "
+                else: return False, "Invalid way of declaring a label. Mid-line commands as '!d' or '!e' can only be used. "
             if (self.__infunction and not self.__functioncall) or (self.__inlabel and not self.__labelcall):
                 self.__elsestatement = ""
                 continue
@@ -506,7 +506,7 @@ class Interpreter:
     def removevariable(self,name): 
         for iter1 in range(len(self.__memory[0])):
             if self.__memory[0][iter1][0] == name: 
-                self.__memory[0][iter1] = None
+                self.__memory[0][iter1] = ['','','','']
                 return 
 
     def searchcmd(self,cmd) -> tuple[str,int]:
