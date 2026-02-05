@@ -5,11 +5,11 @@ class Keyword:
                                 "call", "temp"]
         self.__OneDataCommands:list = ["empt","decm","else"]
         self.__TwoOrMoreDataCommands:list = ["out","inc","dec","decv","decf","set", "add",
-                                                "minus","div", "mult", "parm","cmpt","cmpf",
+                                                "minus","div", "mult","cmpt","cmpf",
                                              "decl", "in", "loop","mkcmd"]
         self.__Commands:list = ["out","in","dec","decv","set","add","minus","mult","div","decf",
-                                "endf","parm","in","inc","call","decm","cmpt","decl","cmpf","endl",
-                                "loop","mkcmd","bring","else"]
+                                "endf","in","inc","call","decm","cmpt","decl","cmpf","endl",
+                                "loop","mkcmd","bring","else","trns"]
 
     def GetKeywords(self) -> list:return self.__Keywords
     def GetOneVariableCommand(self) -> list: return self.__OneDataCommands
